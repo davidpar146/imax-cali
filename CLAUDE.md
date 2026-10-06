@@ -73,6 +73,10 @@ Respetar SIEMPRE el prefijo del módulo al añadir código:
 
 - **OAuth**: `gapi` (Google API) + `google.accounts` (GIS). La inicialización está al final
   del script, en `window.addEventListener('load', …)`. No tocar el flujo de auth salvo necesidad.
+- **Cliente OAuth propio**: `GOOGLE_CLIENT_ID` pertenece al proyecto de Google Cloud **IMAX CALI**
+  (ID `imax-cali`), ya no al heredado de Skadii. La app está en modo "Prueba": solo entran los
+  correos agregados en Google Auth Platform → Público → Usuarios de prueba (máx. 100). Origen
+  autorizado: `https://davidpar146.github.io`.
 - **Carpetas de Drive**: definidas en el objeto `FOLDER_IDS`. Cada tipo de documento tiene su carpeta.
   No cambiar estos IDs sin confirmar con el usuario; apuntan a carpetas reales en producción.
 - **Subida de archivos**: helpers `subirArchivoDrive(...)` y `subirImagenDrive(...)`.
