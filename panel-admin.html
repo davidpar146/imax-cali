@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Administrativo - Sistema de Facturas</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --success: #16a34a;
+            --warning: #ea580c;
+            --danger: #dc2626;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: var(--gray-50);
+            color: var(--gray-800);
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 1.75rem;
+            font-weight: 600;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--gray-600);
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--gray-800);
+            margin-top: 0.5rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: var(--gray-200);
+            color: var(--gray-700);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        th {
+            background: var(--gray-50);
+            font-weight: 600;
+            color: var(--gray-700);
+        }
+
+        tr:hover {
+            background: var(--gray-50);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-factura {
+            background: #dcfce7;
+            color: #15803d;
+        }
+
+        .badge-remision {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-retoma {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .filters {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .filters input,
+        .filters select {
+            padding: 0.75rem;
+            border: 2px solid var(--gray-200);
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+
+        .document-detail {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: var(--gray-50);
+            border-radius: 8px;
+            display: none;
+        }
+
+        .document-detail.active {
+            display: block;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 600px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .upload-zone {
+            border: 3px dashed var(--gray-300);
+            border-radius: 12px;
+            padding: 3rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .upload-zone:hover {
+            border-color: var(--primary);
+            background: var(--gray-50);
+        }
+
+        .upload-zone.dragover {
+            border-color: var(--primary);
+            background: #dbeafe;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            padding: 1rem 1.5rem;
+            background: var(--gray-800);
+            color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            transform: translateY(150%);
+            transition: transform 0.3s;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+        }
+
+        .login-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        }
+
+        .login-box {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .login-box h2 {
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid var(--gray-200);
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+
+        #admin-panel {
+            display: none;
+        }
+
+        #login-screen {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <!-- PANTALLA DE LOGIN -->
+    <div id="login-screen" class="login-container">
+        <div class="login-box">
+            <h2>🔐 Panel Administrativo</h2>
+            <div class="form-group">
+                <label>Usuario</label>
+                <input type="text" id="admin-user" placeholder="Ingrese usuario">
+            </div>
+            <div class="form-group">
+                <label>Contraseña</label>
+                <input type="password" id="admin-pass" placeholder="Ingrese contraseña">
+            </div>
+            <button class="btn btn-primary" style="width: 100%;" onclick="login()">
+                🔓 Iniciar Sesión
+            </button>
+        </div>
+    </div>
+
+    <!-- PANEL ADMINISTRATIVO -->
+    <div id="admin-panel">
+        <div class="header">
+            <h1>📊 Panel Administrativo</h1>
+            <p>Gestión centralizada de todos los documentos</p>
+        </div>
+
+        <div class="container">
+            <!-- Estadísticas -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Total Documentos</div>
+                    <div class="stat-value" id="stat-total">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Facturas</div>
+                    <div class="stat-value" id="stat-facturas">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Remisiones</div>
+                    <div class="stat-value" id="stat-remisiones">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Retomas</div>
+                    <div class="stat-value" id="stat-retomas">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total Facturado</div>
+                    <div class="stat-value" id="stat-total-facturado">$0</div>
+                </div>
+            </div>
+
+            <!-- Acciones -->
+            <div class="card">
+                <h3 style="margin-bottom: 1rem;">📥 Importar Datos</h3>
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="mostrarImportacion()">
+                        📤 Importar desde JSON
+                    </button>
+                    <button class="btn btn-success" onclick="exportarTodo()">
+                        📊 Exportar Todo a Excel
+                    </button>
+                    <button class="btn btn-secondary" onclick="exportarJSON()">
+                        💾 Descargar Respaldo JSON
+                    </button>
+                    <button class="btn btn-secondary" onclick="cerrarSesion()">
+                        🚪 Cerrar Sesión
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filtros -->
+            <div class="card">
+                <h3 style="margin-bottom: 1rem;">🔍 Filtrar Documentos</h3>
+                <div class="filters">
+                    <input type="text" id="filter-search" placeholder="🔍 Buscar por número, cliente, NIT..." oninput="aplicarFiltros()">
+                    <select id="filter-type" onchange="aplicarFiltros()">
+                        <option value="">Todos los tipos</option>
+                        <option value="factura">Facturas</option>
+                        <option value="remision">Remisiones</option>
+                        <option value="retoma">Retomas</option>
+                    </select>
+                    <input type="date" id="filter-date-from" onchange="aplicarFiltros()">
+                    <input type="date" id="filter-date-to" onchange="aplicarFiltros()">
+                    <select id="filter-asesor" onchange="aplicarFiltros()">
+                        <option value="">Todos los asesores</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Tabla de documentos -->
+            <div class="card">
+                <h3 style="margin-bottom: 1rem;">📄 Documentos Registrados</h3>
+                <div style="overflow-x: auto;">
+                    <table id="documents-table">
+                        <thead>
+                            <tr>
+                                <th>Tipo</th>
+                                <th>Número</th>
+                                <th>Fecha</th>
+                                <th>Cliente</th>
+                                <th>NIT</th>
+                                <th>Total</th>
+                                <th>Pagado</th>
+                                <th>Saldo</th>
+                                <th>Asesor</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="documents-body">
+                            <tr>
+                                <td colspan="10" style="text-align: center; padding: 3rem;">
+                                    No hay documentos. Importe datos desde los asesores.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de importación -->
+    <div id="import-modal" class="modal">
+        <div class="modal-content">
+            <h2 style="margin-bottom: 1.5rem;">📤 Importar Datos de Asesor</h2>
+            <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
+                <input type="file" id="file-input" accept=".json" style="display: none;" onchange="procesarArchivo(event)">
+                <p style="font-size: 2rem; margin-bottom: 1rem;">📁</p>
+                <p style="font-weight: 600; margin-bottom: 0.5rem;">Haga clic o arrastre el archivo JSON</p>
+                <p style="color: var(--gray-600); font-size: 0.875rem;">El asesor debe exportar sus datos desde Configuración → Exportar JSON</p>
+            </div>
+            <div class="action-buttons">
+                <button class="btn btn-secondary" onclick="cerrarImportacion()">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de detalle -->
+    <div id="detail-modal" class="modal">
+        <div class="modal-content">
+            <h2 style="margin-bottom: 1rem;">📄 Detalle del Documento</h2>
+            <div id="detail-content"></div>
+            <div class="action-buttons">
+                <button class="btn btn-secondary" onclick="cerrarDetalle()">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+        let allDocuments = [];
+        let filteredDocuments = [];
+        const ADMIN_USER = 'admin';  // 
+        const ADMIN_PASS = 'Skad11';  // 
+
+        // Login
+        function login() {
+            const user = document.getElementById('admin-user').value;
+            const pass = document.getElementById('admin-pass').value;
+
+            if (user === ADMIN_USER && pass === ADMIN_PASS) {
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('admin-panel').style.display = 'block';
+                cargarDatos();
+                mostrarToast('✅ Bienvenido al panel administrativo');
+            } else {
+                mostrarToast('❌ Usuario o contraseña incorrectos');
+            }
+        }
+
+        // Cerrar sesión
+        function cerrarSesion() {
+            if (confirm('¿Desea cerrar sesión?')) {
+                document.getElementById('login-screen').style.display = 'block';
+                document.getElementById('admin-panel').style.display = 'none';
+                document.getElementById('admin-user').value = '';
+                document.getElementById('admin-pass').value = '';
+            }
+        }
+
+        // Cargar datos
+        function cargarDatos() {
+            const saved = localStorage.getItem('imax_admin-documents');
+            if (saved) {
+                allDocuments = JSON.parse(saved);
+                actualizarEstadisticas();
+                aplicarFiltros();
+            }
+        }
+
+        // Guardar datos
+        function guardarDatos() {
+            localStorage.setItem('imax_admin-documents', JSON.stringify(allDocuments));
+        }
+
+        // Mostrar modal de importación
+        function mostrarImportacion() {
+            document.getElementById('import-modal').classList.add('active');
+        }
+
+        // Cerrar modal de importación
+        function cerrarImportacion() {
+            document.getElementById('import-modal').classList.remove('active');
+        }
+
+        // Drag and drop
+        const uploadZone = document.getElementById('upload-zone');
+        
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type === 'application/json') {
+                leerArchivoJSON(file);
+            } else {
+                mostrarToast('❌ Por favor, seleccione un archivo JSON');
+            }
+        });
+
+        // Procesar archivo
+        function procesarArchivo(event) {
+            const file = event.target.files[0];
+            if (file && file.type === 'application/json') {
+                leerArchivoJSON(file);
+            } else {
+                mostrarToast('❌ Por favor, seleccione un archivo JSON');
+            }
+        }
+
+        // Leer archivo JSON
+        function leerArchivoJSON(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (data.documentos && Array.isArray(data.documentos)) {
+                        // Agregar documentos nuevos evitando duplicados
+                        let agregados = 0;
+                        data.documentos.forEach(doc => {
+                            const existe = allDocuments.find(d => 
+                                d.tipo === doc.tipo && 
+                                d.numero === doc.numero && 
+                                d.fecha === doc.fecha
+                            );
+                            if (!existe) {
+                                allDocuments.push(doc);
+                                agregados++;
+                            }
+                        });
+                        
+                        guardarDatos();
+                        actualizarEstadisticas();
+                        aplicarFiltros();
+                        cerrarImportacion();
+                        mostrarToast(`✅ Se importaron ${agregados} documentos nuevos`);
+                    } else {
+                        mostrarToast('❌ Formato de archivo inválido');
+                    }
+                } catch (error) {
+                    mostrarToast('❌ Error al leer el archivo');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // Actualizar estadísticas
+        function actualizarEstadisticas() {
+            const facturas = allDocuments.filter(d => d.tipo === 'factura');
+            const remisiones = allDocuments.filter(d => d.tipo === 'remision');
+            const retomas = allDocuments.filter(d => d.tipo === 'retoma');
+            const totalFacturado = allDocuments.reduce((sum, d) => sum + (d.totalItems || 0), 0);
+
+            document.getElementById('stat-total').textContent = allDocuments.length;
+            document.getElementById('stat-facturas').textContent = facturas.length;
+            document.getElementById('stat-remisiones').textContent = remisiones.length;
+            document.getElementById('stat-retomas').textContent = retomas.length;
+            document.getElementById('stat-total-facturado').textContent = formatMoney(totalFacturado);
+
+            // Actualizar filtro de asesores
+            const asesores = [...new Set(allDocuments.map(d => d.asesor).filter(a => a))];
+            const asesorSelect = document.getElementById('filter-asesor');
+            asesorSelect.innerHTML = '<option value="">Todos los asesores</option>' + 
+                asesores.map(a => `<option value="${a}">${a}</option>`).join('');
+        }
+
+        // Aplicar filtros
+        function aplicarFiltros() {
+            const search = document.getElementById('filter-search').value.toLowerCase();
+            const tipo = document.getElementById('filter-type').value;
+            const dateFrom = document.getElementById('filter-date-from').value;
+            const dateTo = document.getElementById('filter-date-to').value;
+            const asesor = document.getElementById('filter-asesor').value;
+
+            filteredDocuments = allDocuments.filter(doc => {
+                const matchSearch = !search || 
+                    doc.numero.toString().includes(search) ||
+                    doc.cliente.toLowerCase().includes(search) ||
+                    doc.nit.includes(search);
+                
+                const matchTipo = !tipo || doc.tipo === tipo;
+                
+                const docDate = doc.fecha.split('T')[0];
+                const matchDateFrom = !dateFrom || docDate >= dateFrom;
+                const matchDateTo = !dateTo || docDate <= dateTo;
+                
+                const matchAsesor = !asesor || doc.asesor === asesor;
+
+                return matchSearch && matchTipo && matchDateFrom && matchDateTo && matchAsesor;
+            });
+
+            mostrarDocumentos();
+        }
+
+        // Mostrar documentos
+        function mostrarDocumentos() {
+            const tbody = document.getElementById('documents-body');
+            
+            if (filteredDocuments.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 3rem;">No hay documentos que coincidan con los filtros</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = filteredDocuments.map(doc => {
+                const badgeClass = `badge-${doc.tipo}`;
+                return `
+                    <tr>
+                        <td><span class="badge ${badgeClass}">${doc.tipo.toUpperCase()}</span></td>
+                        <td>#${doc.numero}</td>
+                        <td>${formatDate(doc.fecha)}</td>
+                        <td>${doc.cliente}</td>
+                        <td>${doc.nit}</td>
+                        <td>${formatMoney(doc.totalItems || 0)}</td>
+                        <td>${formatMoney(doc.totalPaid || 0)}</td>
+                        <td style="color: ${(doc.balance || 0) > 0 ? 'var(--danger)' : 'var(--success)'}">
+                            ${formatMoney(doc.balance || 0)}
+                        </td>
+                        <td>${doc.asesor || '-'}</td>
+                        <td>
+                            <button class="btn btn-secondary btn-small" onclick="verDetalle(${doc.id})">
+                                👁️ Ver
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Ver detalle
+        function verDetalle(id) {
+            const doc = allDocuments.find(d => d.id === id);
+            if (!doc) return;
+
+            let itemsHtml = doc.items.map(item => `
+                <div style="padding: 0.75rem; background: white; border-radius: 6px; margin-bottom: 0.5rem;">
+                    <strong>${item.descripcion}</strong><br>
+                    Cantidad: ${item.cantidad} × ${formatMoney(item.valor)} = ${formatMoney(item.total)}<br>
+                    ${item.imei ? `IMEI: ${item.imei}<br>` : ''}
+                    Estado: ${item.estado === 'propio' ? '🏢 Propio' : '🤝 Prestado'}<br>
+                    ${item.notas ? `Notas: ${item.notas}` : ''}
+                </div>
+            `).join('');
+
+            let paymentsHtml = doc.payments ? doc.payments.map(payment => {
+                let paymentDetail = `<strong>${payment.method.toUpperCase()}</strong>: ${formatMoney(payment.amount)}`;
+                if (payment.reference) paymentDetail += `<br>Ref: ${payment.reference}`;
+                if (payment.retomaItem) {
+                    const item = payment.retomaItem;
+                    paymentDetail += `<br><div style="margin-top: 0.5rem; padding: 0.5rem; background: #fef3c7; border-radius: 4px;">
+                        <strong>📱 Equipo Recibido:</strong> ${item.descripcion}<br>
+                        Cantidad: ${item.cantidad} × ${formatMoney(item.valor)}<br>
+                        ${item.imei ? `IMEI: ${item.imei}<br>` : ''}
+                        Estado: ${item.estado}<br>
+                        ${item.observaciones ? `Obs: ${item.observaciones}` : ''}
+                    </div>`;
+                }
+                return `<div style="padding: 0.75rem; background: white; border-radius: 6px; margin-bottom: 0.5rem;">${paymentDetail}</div>`;
+            }).join('') : '';
+
+            const content = `
+                <div style="background: var(--gray-50); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                    <h3>${doc.tipo.toUpperCase()} #${doc.numero}</h3>
+                    <p><strong>Fecha:</strong> ${formatDate(doc.fecha)}</p>
+                    <p><strong>Cliente:</strong> ${doc.cliente}</p>
+                    <p><strong>NIT:</strong> ${doc.nit}</p>
+                    ${doc.telefono ? `<p><strong>Teléfono:</strong> ${doc.telefono}</p>` : ''}
+                    ${doc.direccion ? `<p><strong>Dirección:</strong> ${doc.direccion}</p>` : ''}
+                    ${doc.email ? `<p><strong>Email:</strong> ${doc.email}</p>` : ''}
+                    ${doc.asesor ? `<p><strong>Asesor:</strong> ${doc.asesor}</p>` : ''}
+                </div>
+
+                <h4 style="margin: 1rem 0 0.5rem;">📦 Ítems:</h4>
+                ${itemsHtml}
+
+                ${paymentsHtml ? `<h4 style="margin: 1rem 0 0.5rem;">💳 Pagos:</h4>${paymentsHtml}` : ''}
+
+                <div style="background: #dbeafe; padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                    <p><strong>Total Ítems:</strong> ${formatMoney(doc.totalItems || 0)}</p>
+                    <p><strong>Total Pagado:</strong> ${formatMoney(doc.totalPaid || 0)}</p>
+                    <p><strong>Saldo:</strong> <span style="color: ${(doc.balance || 0) > 0 ? 'var(--danger)' : 'var(--success)'}; font-weight: 700;">${formatMoney(doc.balance || 0)}</span></p>
+                </div>
+
+                ${doc.observaciones ? `<div style="margin-top: 1rem;"><strong>📝 Observaciones:</strong><br>${doc.observaciones}</div>` : ''}
+            `;
+
+            document.getElementById('detail-content').innerHTML = content;
+            document.getElementById('detail-modal').classList.add('active');
+        }
+
+        // Cerrar detalle
+        function cerrarDetalle() {
+            document.getElementById('detail-modal').classList.remove('active');
+        }
+
+        // Exportar todo a Excel
+        function exportarTodo() {
+            if (allDocuments.length === 0) {
+                mostrarToast('⚠️ No hay documentos para exportar');
+                return;
+            }
+
+            let csv = 'Tipo,Número,Fecha,Cliente,NIT,Teléfono,Dirección,Email,Asesor,Empresa,Descripción Item,Cantidad,Valor Unit,IMEI,Estado,Notas Item,Total Item,Método Pago,Monto Pago,Ref Pago,Retoma Descripción,Retoma IMEI,Retoma Estado,Total Items,Total Pagado,Saldo,Observaciones\n';
+
+            allDocuments.forEach(doc => {
+                doc.items.forEach((item, idx) => {
+                    const payment = doc.payments && doc.payments[idx] ? doc.payments[idx] : {};
+                    const retoma = payment.retomaItem || {};
+                    
+                    csv += `"${doc.tipo}",${doc.numero},"${formatDateFull(doc.fecha)}","${doc.cliente}","${doc.nit}","${doc.telefono || ''}","${doc.direccion || ''}","${doc.email || ''}","${doc.asesor || ''}","${doc.empresa || ''}","${item.descripcion}",${item.cantidad},${item.valor},"${item.imei || ''}","${item.estado}","${item.notas || ''}",${item.total},"${payment.method || ''}",${payment.amount || 0},"${payment.reference || ''}","${retoma.descripcion || ''}","${retoma.imei || ''}","${retoma.estado || ''}",${doc.totalItems || 0},${doc.totalPaid || 0},${doc.balance || 0},"${doc.observaciones || '"}"\n`;
+                });
+            });
+
+            descargarArchivo(csv, `todos_documentos_${new Date().toISOString().slice(0,10)}.csv`, 'text/csv');
+            mostrarToast('📊 Excel exportado exitosamente');
+        }
+
+        // Exportar JSON
+        function exportarJSON() {
+            if (allDocuments.length === 0) {
+                mostrarToast('⚠️ No hay documentos para exportar');
+                return;
+            }
+
+            const json = JSON.stringify(allDocuments, null, 2);
+            descargarArchivo(json, `respaldo_completo_${new Date().toISOString().slice(0,10)}.json`, 'application/json');
+            mostrarToast('💾 Respaldo JSON descargado');
+        }
+
+        // Descargar archivo
+        function descargarArchivo(contenido, nombre, tipo) {
+            const blob = new Blob([contenido], { type: tipo });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = nombre;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Formatear dinero
+        function formatMoney(valor) {
+            return new Intl.NumberFormat('es-CO', {
+                style: 'currency',
+                currency: 'COP',
+                minimumFractionDigits: 0
+            }).format(valor);
+        }
+
+        // Formatear fecha
+        function formatDate(fecha) {
+            return new Date(fecha).toLocaleDateString('es-CO', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        }
+
+        // Formatear fecha completa
+        function formatDateFull(fecha) {
+            return new Date(fecha).toLocaleString('es-CO');
+        }
+
+        // Mostrar toast
+        function mostrarToast(mensaje) {
+            const toast = document.getElementById('toast');
+            toast.textContent = mensaje;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // Enter para login
+        document.getElementById('admin-pass').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') login();
+        });
+    </script>
+</body>
+</html>
