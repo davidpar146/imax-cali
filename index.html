@@ -719,10 +719,7 @@
                 <label>Asesor Principal *</label>
                 <select id="asesor-principal" onchange="actualizarSelectColaboradores()">
                     <option value="">Seleccione...</option>
-                    <option value="Camilo">Camilo</option>
-                    <option value="Sirley">Sirley</option>
-                    <option value="Josue">Josue</option>
-                    <option value="Nicolas">Nicolas</option>
+                    <!-- Se llena con los asesores del archivo de claves (actualizarSelectAsesorPrincipal) -->
                 </select>
             </div>
 
@@ -1667,7 +1664,7 @@
         <div class="gar-auth-box">
             <h3>🔐 Autorización Requerida</h3>
             <p style="font-size:0.85rem; color:var(--gray-600); margin-bottom:0.75rem;">
-                Solo <strong>Sirley</strong> o <strong>Camilo</strong> pueden autorizar garantías y cambios.
+                Solo los asesores con <strong>permiso de autorización</strong> pueden autorizar garantías y cambios.
             </p>
             <div class="gar-resumen-box" id="gar-resumen-autorizacion"></div>
             <div class="form-group">
@@ -2498,13 +2495,9 @@
         // CAMBIO #2: SELECTOR VISUAL DE PRESTADORES CON FRECUENCIA
         // ========================================================
 
-        // Lista inicial de prestadores (16 nombres del usuario, sin OTRO)
-        const PRESTADORES_INICIALES = [
-            'ALAN', 'ITAC LOCAL', 'JHONATAN', 'FELIPE P10A', 'IMOD',
-            'APPLE STORE', 'SIRLEY', 'COMPUCELL LOCAL', 'ELIZABETH GARCIA',
-            'MARTIN', 'DETODITO LOCAL', 'MARCELA LOCAL 80', 'ARDILA',
-            'YOYO', 'PIPE AMIX JOTA'
-        ];
+        // Lista inicial vacía: los prestadores de IMAX CALI se agregan con "+ OTRO"
+        // y quedan guardados en Drive (PRESTADORES-LISTA.json).
+        const PRESTADORES_INICIALES = [];
 
         const PRESTADORES_ARCHIVO = 'PRESTADORES-LISTA.json';
         let prestadoresLista = [];          // [{nombre, frecuencia}]
@@ -2888,9 +2881,10 @@
 
         // ============= REMISIONES: COLABORADORES, ÍTEMS Y PAGOS =============
 
-        const ASESORES_FIJOS = ['Camilo', 'Sirley', 'Josue', 'Nicolas'];
+        // Sin nombres fijos: los asesores salen solo del archivo de claves de IMAX CALI.
+        const ASESORES_FIJOS = [];
         // Asesores dados de baja: se excluyen al cargar, aunque sigan en el archivo de Drive.
-        const ASESORES_INACTIVOS = ['Male'];
+        const ASESORES_INACTIVOS = [];
 
         // ============= REMISIONES: ACCESORIOS (módulo acc) =============
         // Los accesorios se agregan al mismo array `currentItems` con tipo 'accesorio',
@@ -4077,6 +4071,7 @@
                     delete asesoresPermisos[nombre];
                 });
                 actualizarDropdownAsesores();
+                actualizarSelectAsesorPrincipal();
                 invRepoblarAsesor();
                 mantRenderizarChipsAsesor();
                 mostrarToast('✅ Asesores cargados: ' + Object.keys(clavesAsesores).length);
@@ -4089,6 +4084,7 @@
                 clavesAsesores = {};
                 asesoresPermisos = {};
                 actualizarDropdownAsesores();
+                actualizarSelectAsesorPrincipal();
             }
         }
 
@@ -4121,6 +4117,20 @@
                 option.value = asesor; option.textContent = asesor;
                 select.appendChild(option);
             });
+        }
+
+        // "Asesor Principal" de Remisiones: se llena con los asesores del archivo de claves.
+        function actualizarSelectAsesorPrincipal() {
+            const select = document.getElementById('asesor-principal');
+            if (!select) return;
+            const valorActual = select.value;
+            select.innerHTML = '<option value="">Seleccione...</option>';
+            Object.keys(clavesAsesores).sort().forEach(nombre => {
+                const opt = document.createElement('option');
+                opt.value = nombre; opt.textContent = nombre;
+                select.appendChild(opt);
+            });
+            if (valorActual) select.value = valorActual;
         }
 
         function toggleMenu() {
@@ -6520,8 +6530,8 @@
             const sel = document.getElementById('inv-auth-asesor');
             if (!sel) return;
             sel.innerHTML = '<option value="">Seleccione...</option>';
-            const autorizadoras = ASESORES_FIJOS.filter(n =>
-                n === 'Sirley' || tienePermiso(n, 'administrador') || tienePermiso(n, 'admin')
+            const autorizadoras = Object.keys(clavesAsesores).sort().filter(n =>
+                tienePermiso(n, 'administrador') || tienePermiso(n, 'admin')
             );
             autorizadoras.forEach(nombre => {
                 const opt = document.createElement('option');
