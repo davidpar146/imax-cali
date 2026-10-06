@@ -79,6 +79,9 @@ Respetar SIEMPRE el prefijo del módulo al añadir código:
   autorizado: `https://davidpar146.github.io`.
 - **Carpetas de Drive**: definidas en el objeto `FOLDER_IDS`. Cada tipo de documento tiene su carpeta.
   No cambiar estos IDs sin confirmar con el usuario; apuntan a carpetas reales en producción.
+- **Asesores y permisos**: salen SOLO del archivo de claves (`CONFIG_FILES.clavesAsesores`,
+  `CLAVES-ASESORES-V2` en la carpeta principal). No escribir nombres de asesores ni de prestadores
+  en el código (`ASESORES_FIJOS` y `PRESTADORES_INICIALES` quedan vacíos a propósito).
 - **Subida de archivos**: helpers `subirArchivoDrive(...)` y `subirImagenDrive(...)`.
 - **Registro en Sheets**: `agregarFilaExcel(...)`.
 - **Compatibilidad entre módulos**: el módulo "Pagar Prestadores" detecta archivos cuyo nombre
