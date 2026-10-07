@@ -2184,7 +2184,7 @@
         };
 
         const CONFIG_FILES = {
-            clavesAsesores:     '1E2u4F4GQb7wZ_uX5aaR6It5G_5dgGeo-',
+            clavesAsesores:     '1ptxTdQAySjH9R1nCOY3kERx_AOqiESk0',  // respaldo; se busca por nombre (clavesBuscarArchivoId)
             prestadosPendientes:''
         };
 
@@ -4026,17 +4026,43 @@
 
         // ============= CLAVES Y ANULACIÓN =============
 
+        // El archivo de claves se busca por nombre en la carpeta principal (el más reciente),
+        // porque al volver a subirlo a Drive cambia de ID. Si no aparece, se usa el ID fijo.
+        async function clavesBuscarArchivoId() {
+            try {
+                const r = await gapi.client.drive.files.list({
+                    q: `name contains 'CLAVES-ASESORES' and '${FOLDER_IDS.principal}' in parents and trashed=false` +
+                       ` and mimeType != 'application/vnd.google-apps.document' and mimeType != 'application/vnd.google-apps.folder'`,
+                    fields: 'files(id)', orderBy: 'modifiedTime desc', pageSize: 1
+                });
+                if (r.result.files.length > 0) return r.result.files[0].id;
+            } catch (e) {
+                console.warn('No se pudo buscar el archivo de claves por nombre:', e);
+            }
+            return CONFIG_FILES.clavesAsesores;
+        }
+
+        // Tolera los errores más comunes al editar el JSON a mano: coma faltante
+        // entre asesores ("} {") y coma sobrante antes de "]" o "}".
+        function clavesParsear(texto) {
+            try { return JSON.parse(texto); }
+            catch (e) {
+                const reparado = texto.replace(/\}(\s*)\{/g, '},$1{').replace(/,(\s*[\]}])/g, '$1');
+                return JSON.parse(reparado);  // si sigue mal, lanza SyntaxError
+            }
+        }
+
         async function cargarClavesAsesores() {
             try {
                 mostrarToast('🔄 Cargando asesores...');
-                const fileId = CONFIG_FILES.clavesAsesores;
+                const fileId = await clavesBuscarArchivoId();
                 const fileResponse = await fetch(
                     `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
                     { headers: { 'Authorization': 'Bearer ' + accessToken } }
                 );
                 if (!fileResponse.ok) throw new Error(`HTTP error! status: ${fileResponse.status}`);
                 const contenido = await fileResponse.text();
-                const data = JSON.parse(contenido);
+                const data = clavesParsear(contenido);
 
                 if (data.asesores && Array.isArray(data.asesores)) {
                     clavesAsesores = {};
@@ -4077,7 +4103,8 @@
                 mostrarToast('✅ Asesores cargados: ' + Object.keys(clavesAsesores).length);
             } catch (error) {
                 console.error('Error cargando claves de asesores:', error);
-                const msg = error.message.includes('403') ? '❌ Acceso denegado al archivo de claves.'
+                const msg = error instanceof SyntaxError ? '❌ El archivo de claves tiene un error de formato (revisa comas y comillas).'
+                    : error.message.includes('403') ? '❌ Acceso denegado al archivo de claves.'
                     : error.message.includes('404') ? '❌ Archivo CLAVES-ASESORES-V2 no encontrado.'
                     : '❌ Error cargando asesores. Ver consola.';
                 mostrarToast(msg);

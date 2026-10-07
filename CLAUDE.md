@@ -82,6 +82,9 @@ Respetar SIEMPRE el prefijo del módulo al añadir código:
 - **Asesores y permisos**: salen SOLO del archivo de claves (`CONFIG_FILES.clavesAsesores`,
   `CLAVES-ASESORES-V2` en la carpeta principal). No escribir nombres de asesores ni de prestadores
   en el código (`ASESORES_FIJOS` y `PRESTADORES_INICIALES` quedan vacíos a propósito).
+  El archivo se busca **por nombre** (`CLAVES-ASESORES…`, el más reciente) en la carpeta principal
+  con `clavesBuscarArchivoId()`, porque al resubirlo a Drive cambia de ID; el ID de
+  `CONFIG_FILES` es solo respaldo. `clavesParsear()` tolera comas faltantes/sobrantes.
 - **Subida de archivos**: helpers `subirArchivoDrive(...)` y `subirImagenDrive(...)`.
 - **Registro en Sheets**: `agregarFilaExcel(...)`.
 - **Compatibilidad entre módulos**: el módulo "Pagar Prestadores" detecta archivos cuyo nombre
