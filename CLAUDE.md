@@ -73,6 +73,10 @@ Respetar SIEMPRE el prefijo del módulo al añadir código:
 
 - **OAuth**: `gapi` (Google API) + `google.accounts` (GIS). La inicialización está al final
   del script, en `window.addEventListener('load', …)`. No tocar el flujo de auth salvo necesidad.
+- **Sesión de Google (token)**: dura ~1 hora. `sesionRegistrarExpiracion()` guarda cuándo vence;
+  `sesionRevisar()` (cada 30 s y al volver a la pestaña) muestra el aviso `sesion-aviso` 5 min antes,
+  y `sesionRenovar()` renueva con un clic sin recargar. `subirArchivoDrive`/`subirImagenDrive`
+  muestran el aviso si Drive responde 401. Cualquier flujo nuevo que llame a Google debe tolerar esto.
 - **Cliente OAuth propio**: `GOOGLE_CLIENT_ID` pertenece al proyecto de Google Cloud **IMAX CALI**
   (ID `imax-cali`), ya no al heredado de Skadii. La app está en modo "Prueba": solo entran los
   correos agregados en Google Auth Platform → Público → Usuarios de prueba (máx. 100). Origen

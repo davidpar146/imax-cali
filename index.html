@@ -2153,6 +2153,11 @@
     </div>
 
     <div id="toast" class="toast"></div>
+    <!-- Aviso de sesión de Google por vencer / vencida (módulo sesion…) -->
+    <div id="sesion-aviso" style="display:none; position:fixed; top:0; left:0; right:0; z-index:3000; background:var(--danger); color:white; padding:0.6rem 1rem; font-size:0.9rem; font-weight:600; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,0.25);">
+        <span id="sesion-aviso-texto"></span>
+        <button onclick="sesionRenovar()" style="margin-left:0.75rem; padding:0.35rem 0.9rem; border:none; border-radius:6px; background:white; color:var(--danger); font-weight:700; cursor:pointer;">🔄 Renovar sesión</button>
+    </div>
     <script>
         // ============================================================
         // SISTEMA IMAX CALI (copia de Skadii v25) - CON CAMBIOS:
@@ -2309,6 +2314,7 @@
             tokenClient.callback = async (resp) => {
                 if (resp.error !== undefined) throw (resp);
                 accessToken = gapi.client.getToken().access_token;
+                sesionRegistrarExpiracion(resp);
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('main-content').style.display = 'block';
                 updateDriveStatus(true);
@@ -2325,6 +2331,54 @@
                 tokenClient.requestAccessToken({prompt: ''});
             }
         }
+
+        // ============= SESIÓN DE GOOGLE (renovación del token) =============
+        // El permiso de Google dura ~1 hora y antes no se renovaba: pasado ese tiempo todo
+        // lo que se guardaba en Drive fallaba. Se avisa 5 min antes de que venza y se renueva
+        // con un clic, sin recargar la página ni perder lo que se está llenando.
+        let sesionExpiraEn = null;   // Date.now() en que vence el token actual
+
+        function sesionRegistrarExpiracion(resp) {
+            const segundos = Number(resp && resp.expires_in) || 3600;
+            sesionExpiraEn = Date.now() + segundos * 1000;
+            sesionOcultarAviso();
+        }
+
+        function sesionRevisar() {
+            if (!sesionExpiraEn) return;
+            const restanteMs = sesionExpiraEn - Date.now();
+            if (restanteMs <= 0) sesionMostrarAviso(true);
+            else if (restanteMs <= 5 * 60 * 1000) sesionMostrarAviso(false, Math.ceil(restanteMs / 60000));
+        }
+
+        function sesionMostrarAviso(vencida, minutos) {
+            const aviso = document.getElementById('sesion-aviso');
+            if (!aviso) return;
+            document.getElementById('sesion-aviso-texto').textContent = vencida
+                ? '🔐 Tu sesión de Google venció. Renuévala antes de guardar (no se pierde lo que estás llenando).'
+                : `⏳ Tu sesión de Google vence en ${minutos} min. Renuévala para evitar errores al guardar.`;
+            aviso.style.display = 'block';
+        }
+
+        function sesionOcultarAviso() {
+            const aviso = document.getElementById('sesion-aviso');
+            if (aviso) aviso.style.display = 'none';
+        }
+
+        // Se llama desde el clic del botón (gesto del usuario), así el navegador no bloquea la ventana de Google.
+        function sesionRenovar() {
+            if (!tokenClient) return;
+            tokenClient.callback = (resp) => {
+                if (resp.error !== undefined) { mostrarToast('❌ No se pudo renovar la sesión. Intenta de nuevo.'); return; }
+                accessToken = gapi.client.getToken().access_token;
+                sesionRegistrarExpiracion(resp);
+                mostrarToast('✅ Sesión de Google renovada');
+            };
+            tokenClient.requestAccessToken({ prompt: '' });
+        }
+
+        setInterval(sesionRevisar, 30000);
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) sesionRevisar(); });
 
         function updateDriveStatus(connected) {
             const statusIcon = document.getElementById('status-icon');
@@ -2455,6 +2509,7 @@
                 body: form
             });
             if (!response.ok) {
+                if (response.status === 401) sesionMostrarAviso(true);
                 const errorText = await response.text();
                 throw new Error(`Drive upload failed: ${response.status} - ${errorText}`);
             }
@@ -2477,7 +2532,10 @@
                 headers: new Headers({ 'Authorization': 'Bearer ' + accessToken }),
                 body: form
             });
-            if (!response.ok) throw new Error(`Image upload failed: ${response.status}`);
+            if (!response.ok) {
+                if (response.status === 401) sesionMostrarAviso(true);
+                throw new Error(`Image upload failed: ${response.status}`);
+            }
             return await response.json();
         }
 
@@ -6651,7 +6709,9 @@
                 mostrarToast(`✅ Solicitud ${docName} enviada — pendiente de aprobación`);
             } catch(e) {
                 console.error('Error guardando solicitud:', e);
-                mostrarToast('❌ Error al enviar solicitud');
+                mostrarToast(String(e.message).includes('401')
+                    ? '❌ Sesión de Google vencida: toca "Renovar sesión" y vuelve a enviar'
+                    : '❌ Error al enviar solicitud', 5000);
             }
         }
 
