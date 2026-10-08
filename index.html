@@ -887,9 +887,8 @@
                     <option value="tarjeta">Tarjeta</option>
                     <option value="credito">Crédito Banco de Bogotá</option>
                     <option value="addi">ADDI</option>
-                    <option value="gora">Gora</option>
                     <option value="coordinadora">Coordinadora</option>
-                    <option value="ecredit">E-Credit</option>
+                    <!-- Gora y E-Credit no se usan en IMAX CALI (se quitaron del menú; su lógica queda para leer pagos antiguos) -->
                     <option value="retoma">Retoma (Parte de Pago)</option>
                     <option value="otro">Otro</option>
                 </select>
@@ -3467,6 +3466,7 @@
         // ===== Recargo por medio de pago (para contabilidad) =====
         // El % se calcula sobre el MONTO de ese medio (base). El recargo NO afecta el
         // cuadre de la venta: se guarda aparte en cada pago (recargoPct/Monto/Forma).
+        // Gora y E-Credit ya no se ofrecen en el menú de pagos (IMAX CALI no los usa).
         const RECARGOS_FIJOS = { tarjeta: 5, gora: 12, addi: 17, ecredit: 10 };
         // 'credito' (Banco de Bogotá) es 5% o 6% y lo elige el asesor.
         // Sin recargo: efectivo, transferencia, coordinadora, retoma, otro.
