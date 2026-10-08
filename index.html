@@ -1367,6 +1367,17 @@
     </div>
 
     <!-- Modal Novedad de Mantenimiento -->
+    <!-- Detalle de un mantenimiento: ingreso, novedades y salida -->
+    <div id="mant-detalle-modal" class="modal">
+        <div class="modal-content" style="max-width:560px;">
+            <div class="modal-header">
+                <h3 id="mant-detalle-titulo">🔎 Detalle</h3>
+                <button class="modal-close" onclick="mantCerrarDetalle()">×</button>
+            </div>
+            <div id="mant-detalle-contenido"></div>
+        </div>
+    </div>
+
     <div id="mant-novedad-modal" class="modal">
         <div class="modal-content" style="max-width:520px;">
             <div class="modal-header">
@@ -4685,12 +4696,13 @@
             const container = document.getElementById('mant-lista-container');
             container.innerHTML = '<p style="text-align:center; color:var(--gray-500);">⏳ Cargando...</p>';
             try {
+                // Solo archivos JSON (antes se colaba la carpeta "Fotos de Mantenimientos")
                 const response = await gapi.client.drive.files.list({
-                    q: `'${FOLDER_IDS.mantenimientos}' in parents and trashed=false and name contains 'Mantenimiento-' and not name contains '-Novedad'`,
+                    q: `'${FOLDER_IDS.mantenimientos}' in parents and trashed=false and mimeType='application/json' and name contains 'Mantenimiento-' and not name contains '-Novedad'`,
                     fields: 'files(id, name, createdTime)',
                     orderBy: 'name desc', pageSize: 50
                 });
-                const files = response.result.files;
+                const files = response.result.files.filter(f => /^Mantenimiento-\d+\.json$/.test(f.name));
                 if (files.length === 0) {
                     container.innerHTML = '<p style="text-align:center; color:var(--gray-500);">No hay mantenimientos registrados</p>';
                     return;
@@ -4705,105 +4717,26 @@
                         return { fileId: f.id, fileName: f.name, doc: await r.json() };
                     } catch { return { fileId: f.id, fileName: f.name, doc: null }; }
                 }));
-                const ESTADO_LABELS = {
-                    recibido: '📥 Recibido', en_proceso: '⚙️ En Proceso',
-                    entregado: '✅ Entregado', no_reparado: '❌ No Reparado'
-                };
-                const ESTADO_CLASE = {
-                    recibido: 'estado-recibido', en_proceso: 'estado-en_proceso',
-                    entregado: 'estado-entregado', no_reparado: 'estado-no_reparado'
-                };
-                const renderTarjeta = ({ fileId, fileName, doc }) => {
-                    const nombre = fileName.replace('.json', '');
-                    let fecha = doc ? new Date(doc.fecha_ingreso).toLocaleDateString('es-CO') : '-';
-                    if (doc && ESTADOS_CON_CIERRE.includes(doc.estado_actual)) {
-                        fecha += ` · Cerrado ${mantFechaCierre(doc).toLocaleDateString('es-CO')}`;
-                    }
-                    const cliente = doc ? (doc.cliente?.nombre || '-') : '-';
-                    const equipo = doc ? (doc.equipo?.descripcion || '-') : '-';
-                    const estado = doc ? (doc.estado_actual || 'recibido') : 'recibido';
-                    const anticipo = doc ? (doc.costos?.anticipo || 0) : 0;
-                    const novedades = doc ? (doc.novedades || []) : [];
-                    const novedadesHTML = novedades.length > 0
-                        ? novedades.map(n => `
-                            <div class="novedad-card">
-                                <div class="novedad-card-header">
-                                    <span class="novedad-estado-tag ${ESTADO_CLASE[n.estado] || 'estado-recibido'}">
-                                        ${ESTADO_LABELS[n.estado] || n.estado}
-                                    </span>
-                                    <span class="novedad-fecha">${new Date(n.fecha).toLocaleDateString('es-CO')}</span>
-                                </div>
-                                <div class="novedad-texto">${n.texto}</div>
-                                ${n.pago ? `<div class="novedad-pago">
-                                    💰 Precio final: ${formatMoney(n.pago.precio_final || 0)} |
-                                    Anticipo: ${formatMoney(n.pago.anticipo || 0)} |
-                                    Saldo: ${formatMoney(n.pago.saldo || 0)} |
-                                    ${n.pago.metodo || '-'}
-                                </div>` : ''}
-                            </div>`).join('')
-                        : '<p style="font-size:0.8rem; color:var(--gray-500);">Sin novedades registradas</p>';
-                    const docResumen = encodeURIComponent(JSON.stringify({
-                        fileId, fileName, estado, anticipo,
-                        cliente: doc?.cliente, equipo: doc?.equipo,
-                        inspeccion_visual: doc?.inspeccion_visual,
-                        novedades: doc?.novedades || []
-                    }));
-                    return `
-                        <div class="mant-lista-card">
-                            <div class="mant-lista-header" onclick="mantToggleCard(this)">
-                                <div>
-                                    <div style="font-weight:700; font-size:0.9rem;">${nombre}</div>
-                                    <div style="font-size:0.75rem; color:var(--gray-600);">
-                                        ${cliente} · ${equipo}
-                                    </div>
-                                    <div style="font-size:0.75rem; color:var(--gray-500);">${fecha}</div>
-                                </div>
-                                <div style="text-align:right;">
-                                    <span class="mant-estado-badge ${ESTADO_CLASE[estado]}">${ESTADO_LABELS[estado] || estado}</span>
-                                    <div style="font-size:0.7rem; color:var(--gray-400); margin-top:0.25rem;">▼</div>
-                                </div>
-                            </div>
-                            <div class="mant-lista-body">
-                                <div style="margin-bottom:0.75rem;">
-                                    <strong style="font-size:0.85rem; color:var(--gray-700);">Novedades:</strong>
-                                </div>
-                                ${novedadesHTML}
-                                <div style="display:flex; gap:0.5rem; margin-top:0.75rem;">
-                                    <button class="btn btn-primary"
-                                        style="flex:1; padding:0.65rem; font-size:0.85rem;"
-                                        onclick="mantAbrirNovedad('${docResumen}')">
-                                        ➕ Agregar Novedad
-                                    </button>
-                                    <a href="https://drive.google.com/file/d/${fileId}/view" target="_blank"
-                                       class="btn btn-secondary"
-                                       style="flex:0.5; padding:0.65rem; font-size:0.85rem; text-align:center; text-decoration:none;">
-                                        📄 Ver
-                                    </a>
-                                </div>
-                            </div>
-                        </div>`;
-                };
-                // Agrupar: en mantenimiento / con novedad / finalizados (7 días) / anteriores (plegados)
+                // Documentos a mano para el botón "Detalle" (sin volver a descargarlos)
+                mantListaDocs = {};
+                tarjetas.forEach(t => { mantListaDocs[t.fileId] = t; });
+
                 const g = mantAgruparLista(mantQuitarDuplicados(tarjetas));
-                const seccion = (titulo, ayuda, items) => `
-                    <div style="display:flex; justify-content:space-between; align-items:baseline; margin:1.1rem 0 0.4rem;">
-                        <strong style="font-size:0.95rem; color:var(--gray-800);">${titulo}</strong>
-                        <span style="font-size:0.75rem; color:var(--gray-500); font-weight:600;">${items.length}</span>
-                    </div>
-                    <div style="font-size:0.75rem; color:var(--gray-500); margin-bottom:0.5rem;">${ayuda}</div>
-                    ${items.length ? items.map(renderTarjeta).join('')
-                        : '<p style="font-size:0.8rem; color:var(--gray-400); margin:0 0 0.5rem;">Ninguno</p>'}`;
-                container.innerHTML =
-                    seccion('📥 En mantenimiento', 'Recibidos, todavía sin novedades', g.pendientes) +
-                    seccion('📝 Con novedad', 'Abiertos que ya tienen alguna novedad registrada', g.conNovedad) +
-                    seccion(`✅ Finalizados (últimos ${MANT_DIAS_FINALIZADOS} días)`, 'Entregados o no reparados; salen de la vista a los ' + MANT_DIAS_FINALIZADOS + ' días del cierre', g.finalizados) +
-                    (g.anteriores.length ? `
-                        <details style="margin-top:1.1rem;">
-                            <summary style="cursor:pointer; font-size:0.85rem; color:var(--gray-600); font-weight:600;">
-                                🗄️ Finalizados anteriores (${g.anteriores.length})
-                            </summary>
-                            <div style="margin-top:0.5rem;">${g.anteriores.map(renderTarjeta).join('')}</div>
-                        </details>` : '');
+                const tile = (key, titulo, n, grad) => `
+                    <div onclick="mantAbrirGrupo('${key}')" style="cursor:pointer; background:linear-gradient(135deg,${grad}); color:white; border-radius:10px; padding:0.75rem 0.4rem; text-align:center;">
+                        <div style="font-size:0.72rem; opacity:0.9;">${titulo}</div>
+                        <div style="font-weight:700; font-size:1.35rem; margin-top:0.15rem;">${n}</div>
+                    </div>`;
+                container.innerHTML = `
+                    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:0.5rem; margin-bottom:1rem;">
+                        ${tile('pendientes', '📥 En mantenimiento', g.pendientes.length, '#2563eb,#1d4ed8')}
+                        ${tile('conNovedad', '📝 Con novedad', g.conNovedad.length, '#d97706,#b45309')}
+                        ${tile('finalizados', `✅ Finalizados ${MANT_DIAS_FINALIZADOS}d`, g.finalizados.length, '#15803d,#16a34a')}
+                    </div>` +
+                    mantRenderGrupo('pendientes', '📥 En mantenimiento', 'Recibidos, todavía sin novedades', '#2563eb', g.pendientes) +
+                    mantRenderGrupo('conNovedad', '📝 Con novedad', 'Abiertos que ya tienen alguna novedad registrada', '#d97706', g.conNovedad) +
+                    mantRenderGrupo('finalizados', `✅ Finalizados (últimos ${MANT_DIAS_FINALIZADOS} días)`, `Entregados o no reparados; salen de la vista a los ${MANT_DIAS_FINALIZADOS} días del cierre`, '#16a34a', g.finalizados) +
+                    (g.anteriores.length ? mantRenderGrupo('anteriores', '🗄️ Finalizados anteriores', `Cerrados hace más de ${MANT_DIAS_FINALIZADOS} días`, '#9ca3af', g.anteriores) : '');
             } catch (e) {
                 container.innerHTML = '<p style="text-align:center; color:var(--danger);">❌ Error cargando lista</p>';
                 console.error(e);
@@ -4851,6 +4784,203 @@
             g.finalizados.sort((a, b) => b._cierre - a._cierre);
             g.anteriores.sort((a, b) => b._cierre - a._cierre);
             return g;
+        }
+
+        // ===== Lista de mantenimientos: presentación (estilo Ingresos Pendientes) =====
+        const MANT_ESTADO_LABELS = {
+            recibido: '📥 Recibido', en_proceso: '⚙️ En Proceso',
+            entregado: '✅ Entregado', no_reparado: '❌ No Reparado'
+        };
+        const MANT_ESTADO_CLASE = {
+            recibido: 'estado-recibido', en_proceso: 'estado-en_proceso',
+            entregado: 'estado-entregado', no_reparado: 'estado-no_reparado'
+        };
+        let mantListaDocs = {};                 // fileId -> { fileId, fileName, doc } de la última carga
+        const mantGruposAbiertos = new Set();   // grupos expandidos (se conservan al recargar la lista)
+
+        function mantEsc(s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+                ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
+        function mantRenderGrupo(key, titulo, ayuda, color, items) {
+            const abierto = mantGruposAbiertos.has(key);
+            return `
+                <div class="card" style="border-left:4px solid ${color}; margin-bottom:0.75rem; padding:0.9rem 1rem;">
+                    <div onclick="mantToggleGrupo('${key}')" style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+                        <div>
+                            <div style="font-weight:700; font-size:1rem;">${titulo}</div>
+                            <div style="font-size:0.75rem; color:var(--gray-500);">${ayuda}</div>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:0.6rem;">
+                            <span style="font-weight:700; font-size:1.15rem; color:${color};">${items.length}</span>
+                            <span id="mant-grupo-flecha-${key}" style="color:var(--gray-500); font-size:0.8rem;">${abierto ? '▲' : '▼'}</span>
+                        </div>
+                    </div>
+                    <div id="mant-grupo-cuerpo-${key}" style="display:${abierto ? 'block' : 'none'}; margin-top:0.75rem;">
+                        ${items.length ? items.map(mantRenderItem).join('')
+                            : '<p style="font-size:0.8rem; color:var(--gray-400); margin:0;">Ninguno</p>'}
+                    </div>
+                </div>`;
+        }
+
+        function mantRenderItem({ fileId, fileName, doc }) {
+            const nombre = fileName.replace('.json', '');
+            if (!doc) {
+                return `<div style="background:var(--gray-50); border-radius:8px; padding:0.6rem 0.7rem; margin-bottom:0.45rem; font-size:0.82rem;">
+                    <strong>${nombre}</strong> · <span style="color:var(--danger);">no se pudo leer</span></div>`;
+            }
+            const estado = doc.estado_actual || 'recibido';
+            const novedades = doc.novedades || [];
+            let fecha = 'Ingreso ' + new Date(doc.fecha_ingreso).toLocaleDateString('es-CO');
+            if (ESTADOS_CON_CIERRE.includes(estado)) fecha += ` · Cerrado ${mantFechaCierre(doc).toLocaleDateString('es-CO')}`;
+            if (novedades.length) fecha += ` · ${novedades.length} novedad(es)`;
+            const docResumen = encodeURIComponent(JSON.stringify({
+                fileId, fileName, estado, anticipo: doc.costos?.anticipo || 0,
+                cliente: doc.cliente, equipo: doc.equipo,
+                inspeccion_visual: doc.inspeccion_visual, novedades
+            }));
+            return `
+                <div style="background:var(--gray-50); border-radius:8px; padding:0.6rem 0.7rem; margin-bottom:0.45rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:0.5rem;">
+                        <div style="min-width:0;">
+                            <div style="font-weight:700; font-size:0.88rem;">${nombre}${doc.origen === 'imax' ? ' <span style="font-size:0.68rem; background:#dbeafe; color:#1e40af; border-radius:10px; padding:0.05rem 0.4rem;">🏢 IMAX</span>' : ''}</div>
+                            <div style="font-size:0.75rem; color:var(--gray-600);">${mantEsc(doc.cliente?.nombre || '-')} · ${mantEsc(doc.equipo?.descripcion || '-')}</div>
+                            <div style="font-size:0.72rem; color:var(--gray-500);">${fecha}</div>
+                        </div>
+                        <span class="mant-estado-badge ${MANT_ESTADO_CLASE[estado] || ''}" style="white-space:nowrap;">${MANT_ESTADO_LABELS[estado] || estado}</span>
+                    </div>
+                    <div style="display:flex; gap:0.4rem; margin-top:0.5rem;">
+                        <button class="btn btn-secondary" style="flex:1; padding:0.45rem; font-size:0.8rem;" onclick="mantVerDetalle('${fileId}')">🔎 Detalle</button>
+                        <button class="btn btn-primary" style="flex:1; padding:0.45rem; font-size:0.8rem;" onclick="mantAbrirNovedad('${docResumen}')">➕ Novedad</button>
+                        <a href="https://drive.google.com/file/d/${fileId}/view" target="_blank" class="btn btn-secondary"
+                           style="flex:0.6; padding:0.45rem; font-size:0.8rem; text-align:center; text-decoration:none;">📄 Drive</a>
+                    </div>
+                </div>`;
+        }
+
+        function mantToggleGrupo(key) {
+            const cuerpo = document.getElementById(`mant-grupo-cuerpo-${key}`);
+            if (!cuerpo) return;
+            const abrir = cuerpo.style.display === 'none';
+            cuerpo.style.display = abrir ? 'block' : 'none';
+            const flecha = document.getElementById(`mant-grupo-flecha-${key}`);
+            if (flecha) flecha.textContent = abrir ? '▲' : '▼';
+            if (abrir) mantGruposAbiertos.add(key); else mantGruposAbiertos.delete(key);
+        }
+
+        // Desde las tarjetas resumen: abre el grupo y lo lleva a la vista
+        function mantAbrirGrupo(key) {
+            const cuerpo = document.getElementById(`mant-grupo-cuerpo-${key}`);
+            if (!cuerpo) return;
+            if (cuerpo.style.display === 'none') mantToggleGrupo(key);
+            cuerpo.parentElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // ===== Detalle de un mantenimiento: ingreso, novedades y salida =====
+        function mantVerDetalle(fileId) {
+            const t = mantListaDocs[fileId];
+            if (!t || !t.doc) { mostrarToast('⚠️ No se pudo leer este mantenimiento'); return; }
+            const d = t.doc;
+            const docName = t.fileName.replace('.json', '');
+            const fechaHora = f => f ? new Date(f).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+            const fila = (k, v) => v ? `
+                <div style="display:flex; gap:0.6rem; font-size:0.82rem; padding:0.15rem 0;">
+                    <span style="color:var(--gray-500); min-width:115px;">${k}</span>
+                    <span style="font-weight:600; color:var(--gray-800);">${v}</span>
+                </div>` : '';
+            const bloque = (titulo, color, cuerpo) => `
+                <div style="border-left:4px solid ${color}; background:var(--gray-50); border-radius:8px; padding:0.7rem 0.85rem; margin-bottom:0.75rem;">
+                    <div style="font-weight:700; margin-bottom:0.4rem;">${titulo}</div>${cuerpo}
+                </div>`;
+            const firma = (src, titulo) => src ? `
+                <div style="margin-top:0.4rem;"><div style="font-size:0.75rem; color:var(--gray-500);">${titulo}</div>
+                <img src="${src}" alt="${titulo}" style="max-width:100%; max-height:110px; background:white; border:1px solid var(--gray-200); border-radius:6px;"></div>` : '';
+            const dinero = v => v ? formatMoney(v) : '';
+
+            // 📥 Ingreso
+            const esImax = d.origen === 'imax';
+            const danos = ['frente', 'posterior'].flatMap(cara =>
+                (d.inspeccion_visual?.[cara] || []).map(x => `${cara === 'frente' ? 'Frente' : 'Posterior'}: ${mantEsc(x.descripcion || x.tipo)}`));
+            const ingreso =
+                fila('Fecha de ingreso', fechaHora(d.fecha_ingreso)) +
+                fila('Origen', esImax ? '🏢 IMAX (equipo propio)' : '👤 Cliente') +
+                (esImax ? '' : fila('Cliente', mantEsc(d.cliente?.nombre)) + fila('Teléfono', mantEsc(d.cliente?.telefono)) +
+                    fila('Identificación', mantEsc(d.cliente?.identificacion))) +
+                fila('Equipo', mantEsc(d.equipo?.descripcion)) + fila('IMEI / Serie', mantEsc(d.equipo?.imei)) +
+                fila('Falla reportada', mantEsc(d.falla_reportada)) +
+                fila('Daños marcados', danos.length ? danos.join('<br>') : 'Ninguno') +
+                fila('Costo estimado', dinero(d.costos?.estimado)) + fila('Anticipo', dinero(d.costos?.anticipo)) +
+                fila('Entrega estimada', d.fecha_entrega_estimada ? new Date(d.fecha_entrega_estimada + 'T12:00:00').toLocaleDateString('es-CO') : '') +
+                fila('Asesor', mantEsc(d.asesor_responsable)) +
+                `<div style="margin-top:0.4rem;"><div style="font-size:0.75rem; color:var(--gray-500);">Fotos</div>
+                    <div id="mant-detalle-fotos" style="display:flex; flex-wrap:wrap; gap:0.35rem; margin-top:0.2rem; font-size:0.8rem; color:var(--gray-500);">⏳ Buscando fotos...</div></div>` +
+                firma(d.firma_cliente, 'Firma del cliente al ingreso');
+
+            // 📝 Novedades
+            const novedades = d.novedades || [];
+            const listaNov = novedades.length ? novedades.map(n => `
+                <div style="background:white; border:1px solid var(--gray-200); border-radius:6px; padding:0.5rem 0.6rem; margin-bottom:0.4rem;">
+                    <div style="display:flex; justify-content:space-between; gap:0.5rem; font-size:0.75rem;">
+                        <span class="mant-estado-badge ${MANT_ESTADO_CLASE[n.estado] || ''}">${MANT_ESTADO_LABELS[n.estado] || mantEsc(n.estado)}</span>
+                        <span style="color:var(--gray-500);">${fechaHora(n.fecha)}</span>
+                    </div>
+                    <div style="font-size:0.82rem; margin-top:0.3rem;">${mantEsc(n.texto)}</div>
+                    ${n.pago ? `<div style="font-size:0.75rem; color:var(--gray-600); margin-top:0.25rem;">💰 Precio final ${formatMoney(n.pago.precio_final || 0)} · Anticipo ${formatMoney(n.pago.anticipo || 0)} · Saldo ${formatMoney(n.pago.saldo || 0)}${n.pago.metodo ? ' · ' + mantEsc(n.pago.metodo) : ''}</div>` : ''}
+                </div>`).join('') : '<p style="font-size:0.8rem; color:var(--gray-500); margin:0;">Sin novedades registradas</p>';
+
+            // 🚪 Salida (si está cerrado)
+            const estado = d.estado_actual || 'recibido';
+            let salida;
+            if (ESTADOS_CON_CIERRE.includes(estado)) {
+                const cierres = novedades.filter(n => ESTADOS_CON_CIERRE.includes(n.estado));
+                const c = cierres[cierres.length - 1];
+                salida = c
+                    ? fila('Fecha de salida', fechaHora(c.fecha)) + fila('Resultado', MANT_ESTADO_LABELS[c.estado] || mantEsc(c.estado)) +
+                      fila('Detalle', mantEsc(c.texto)) +
+                      (c.pago ? fila('Precio final', formatMoney(c.pago.precio_final || 0)) + fila('Anticipo', formatMoney(c.pago.anticipo || 0)) +
+                                fila('Saldo', formatMoney(c.pago.saldo || 0)) + fila('Método de pago', mantEsc(c.pago.metodo)) : '') +
+                      firma(c.firma_cliente, 'Firma de entrega')
+                    : fila('Resultado', MANT_ESTADO_LABELS[estado]) + fila('Fecha', fechaHora(d.fecha_ingreso)) +
+                      '<p style="font-size:0.75rem; color:var(--gray-500); margin:0.3rem 0 0;">Se registró ya cerrado (sin novedad de salida).</p>';
+            } else {
+                salida = `<p style="font-size:0.8rem; color:var(--gray-500); margin:0;">Aún en mantenimiento · Estado actual: ${MANT_ESTADO_LABELS[estado] || mantEsc(estado)}</p>`;
+            }
+
+            document.getElementById('mant-detalle-titulo').textContent = `🔎 ${docName}`;
+            document.getElementById('mant-detalle-contenido').innerHTML =
+                bloque('📥 Ingreso', '#2563eb', ingreso) +
+                bloque(`📝 Novedades (${novedades.length})`, '#d97706', listaNov) +
+                bloque('🚪 Salida', ESTADOS_CON_CIERRE.includes(estado) ? '#16a34a' : '#9ca3af', salida);
+            document.getElementById('mant-detalle-modal').classList.add('active');
+            mantDetalleCargarFotos(docName);
+        }
+
+        async function mantDetalleCargarFotos(docName) {
+            const cont = document.getElementById('mant-detalle-fotos');
+            if (!cont) return;
+            try {
+                const r = await gapi.client.drive.files.list({
+                    q: `'${FOLDER_IDS.fotosMantenimientos}' in parents and trashed=false and name contains '${docName}'`,
+                    fields: 'files(id, name)', pageSize: 30
+                });
+                const vistos = new Set();   // las copias repetidas de una foto se muestran una vez
+                const fotos = (r.result.files || [])
+                    .filter(f => f.name.startsWith(docName + '-') && !vistos.has(f.name) && vistos.add(f.name))
+                    .sort((a, b) => a.name.localeCompare(b.name));
+                cont.innerHTML = fotos.length ? fotos.map(f => `
+                    <a href="https://drive.google.com/file/d/${f.id}/view" target="_blank"
+                       style="background:white; border:1px solid var(--gray-300); border-radius:14px; padding:0.2rem 0.6rem; text-decoration:none; color:var(--gray-700); font-weight:600;">
+                       📷 ${mantEsc(f.name.replace(docName + '-', '').replace(/\.jpg$/i, '').replace(/-/g, ' '))}</a>`).join('')
+                    : 'Sin fotos';
+            } catch (e) {
+                console.error('Error buscando fotos del mantenimiento:', e);
+                cont.textContent = 'No se pudieron cargar las fotos';
+            }
+        }
+
+        function mantCerrarDetalle() {
+            document.getElementById('mant-detalle-modal').classList.remove('active');
         }
 
         function mantToggleCard(header) {
