@@ -4713,9 +4713,12 @@
                     recibido: 'estado-recibido', en_proceso: 'estado-en_proceso',
                     entregado: 'estado-entregado', no_reparado: 'estado-no_reparado'
                 };
-                container.innerHTML = tarjetas.map(({ fileId, fileName, doc }) => {
+                const renderTarjeta = ({ fileId, fileName, doc }) => {
                     const nombre = fileName.replace('.json', '');
-                    const fecha = doc ? new Date(doc.fecha_ingreso).toLocaleDateString('es-CO') : '-';
+                    let fecha = doc ? new Date(doc.fecha_ingreso).toLocaleDateString('es-CO') : '-';
+                    if (doc && ESTADOS_CON_CIERRE.includes(doc.estado_actual)) {
+                        fecha += ` · Cerrado ${mantFechaCierre(doc).toLocaleDateString('es-CO')}`;
+                    }
                     const cliente = doc ? (doc.cliente?.nombre || '-') : '-';
                     const equipo = doc ? (doc.equipo?.descripcion || '-') : '-';
                     const estado = doc ? (doc.estado_actual || 'recibido') : 'recibido';
@@ -4779,11 +4782,75 @@
                                 </div>
                             </div>
                         </div>`;
-                }).join('');
+                };
+                // Agrupar: en mantenimiento / con novedad / finalizados (7 días) / anteriores (plegados)
+                const g = mantAgruparLista(mantQuitarDuplicados(tarjetas));
+                const seccion = (titulo, ayuda, items) => `
+                    <div style="display:flex; justify-content:space-between; align-items:baseline; margin:1.1rem 0 0.4rem;">
+                        <strong style="font-size:0.95rem; color:var(--gray-800);">${titulo}</strong>
+                        <span style="font-size:0.75rem; color:var(--gray-500); font-weight:600;">${items.length}</span>
+                    </div>
+                    <div style="font-size:0.75rem; color:var(--gray-500); margin-bottom:0.5rem;">${ayuda}</div>
+                    ${items.length ? items.map(renderTarjeta).join('')
+                        : '<p style="font-size:0.8rem; color:var(--gray-400); margin:0 0 0.5rem;">Ninguno</p>'}`;
+                container.innerHTML =
+                    seccion('📥 En mantenimiento', 'Recibidos, todavía sin novedades', g.pendientes) +
+                    seccion('📝 Con novedad', 'Abiertos que ya tienen alguna novedad registrada', g.conNovedad) +
+                    seccion(`✅ Finalizados (últimos ${MANT_DIAS_FINALIZADOS} días)`, 'Entregados o no reparados; salen de la vista a los ' + MANT_DIAS_FINALIZADOS + ' días del cierre', g.finalizados) +
+                    (g.anteriores.length ? `
+                        <details style="margin-top:1.1rem;">
+                            <summary style="cursor:pointer; font-size:0.85rem; color:var(--gray-600); font-weight:600;">
+                                🗄️ Finalizados anteriores (${g.anteriores.length})
+                            </summary>
+                            <div style="margin-top:0.5rem;">${g.anteriores.map(renderTarjeta).join('')}</div>
+                        </details>` : '');
             } catch (e) {
                 container.innerHTML = '<p style="text-align:center; color:var(--danger);">❌ Error cargando lista</p>';
                 console.error(e);
             }
+        }
+
+        // ===== Lista de mantenimientos: agrupación =====
+        const MANT_DIAS_FINALIZADOS = 7;   // días que un finalizado sigue a la vista
+
+        // Fecha de cierre: la de la última novedad que lo pasó a Entregado / No reparado
+        // (si se registró ya cerrado, la de ingreso).
+        function mantFechaCierre(doc) {
+            const cierres = (doc.novedades || []).filter(n => ESTADOS_CON_CIERRE.includes(n.estado));
+            return new Date(cierres.length ? cierres[cierres.length - 1].fecha : doc.fecha_ingreso);
+        }
+
+        // Copias repetidas del mismo número (por guardados dobles antiguos): se muestra una
+        // sola, la que tenga más novedades. Los archivos en Drive no se tocan.
+        function mantQuitarDuplicados(tarjetas) {
+            const porNombre = new Map();
+            tarjetas.forEach(t => {
+                const prev = porNombre.get(t.fileName);
+                const n = t.doc ? (t.doc.novedades || []).length : -1;
+                const nPrev = prev && prev.doc ? (prev.doc.novedades || []).length : -1;
+                if (!prev || n > nPrev) porNombre.set(t.fileName, t);
+            });
+            return [...porNombre.values()];
+        }
+
+        function mantAgruparLista(tarjetas) {
+            const g = { pendientes: [], conNovedad: [], finalizados: [], anteriores: [] };
+            const limiteMs = MANT_DIAS_FINALIZADOS * 24 * 60 * 60 * 1000;
+            tarjetas.forEach(t => {
+                if (!t.doc) { g.pendientes.push(t); return; }   // no se pudo leer: que no se pierda de vista
+                const estado = t.doc.estado_actual || 'recibido';
+                if (ESTADOS_CON_CIERRE.includes(estado)) {
+                    t._cierre = mantFechaCierre(t.doc);
+                    (Date.now() - t._cierre.getTime() <= limiteMs ? g.finalizados : g.anteriores).push(t);
+                } else if ((t.doc.novedades || []).length > 0) {
+                    g.conNovedad.push(t);
+                } else {
+                    g.pendientes.push(t);
+                }
+            });
+            g.finalizados.sort((a, b) => b._cierre - a._cierre);
+            g.anteriores.sort((a, b) => b._cierre - a._cierre);
+            return g;
         }
 
         function mantToggleCard(header) {

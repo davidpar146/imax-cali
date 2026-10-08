@@ -93,6 +93,10 @@ Respetar SIEMPRE el prefijo del módulo al añadir código:
   IMAX oculta los datos y la firma del cliente (`mant-card-cliente`, `mant-card-firma`) y guarda
   `origen: 'imax'`, `cliente.nombre: 'IMAX CALI'`, `firma_cliente: null`. Todo el formulario está en
   `mant-form-cuerpo` (oculto hasta elegir). El botón Guardar se bloquea mientras sube (`mantGuardando`).
+- **Mantenimientos — lista**: `mantAgruparLista()` separa En mantenimiento (abiertos sin novedades),
+  Con novedad (abiertos con novedades), Finalizados de los últimos `MANT_DIAS_FINALIZADOS` (7) días
+  y Finalizados anteriores (plegados en `<details>`). La fecha de cierre la da `mantFechaCierre()`.
+  `mantQuitarDuplicados()` muestra una sola copia por número (no toca Drive).
 - **Catálogo de accesorios**: `ACCESORIOS_CATALOGO` / `ACC_CATEGORIAS` (solo lo usa Remisiones).
   Los precios no van en el catálogo; se digitan en cada venta.
   El archivo se busca **por nombre** (`CLAVES-ASESORES…`, el más reciente) en la carpeta principal
