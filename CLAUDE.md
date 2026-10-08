@@ -80,8 +80,13 @@ Respetar SIEMPRE el prefijo del módulo al añadir código:
 - **Carpetas de Drive**: definidas en el objeto `FOLDER_IDS`. Cada tipo de documento tiene su carpeta.
   No cambiar estos IDs sin confirmar con el usuario; apuntan a carpetas reales en producción.
 - **Asesores y permisos**: salen SOLO del archivo de claves (`CONFIG_FILES.clavesAsesores`,
-  `CLAVES-ASESORES-V2` en la carpeta principal). No escribir nombres de asesores ni de prestadores
-  en el código (`ASESORES_FIJOS` y `PRESTADORES_INICIALES` quedan vacíos a propósito).
+  `CLAVES-ASESORES-V2` en la carpeta principal). No escribir nombres de asesores en el código
+  (`ASESORES_FIJOS` queda vacío a propósito).
+- **Prestadores**: viven en `PRESTADORES-LISTA.json` (carpeta `prestamosPagos`); se agregan con
+  "+ OTRO". `PRESTADORES_INICIALES` (hoy `JHONATAN`, `SIRLEY`, pedido por el usuario) solo
+  siembra la lista si ese archivo no existe o está vacío.
+- **Catálogo de accesorios**: `ACCESORIOS_CATALOGO` / `ACC_CATEGORIAS` (solo lo usa Remisiones).
+  Los precios no van en el catálogo; se digitan en cada venta.
   El archivo se busca **por nombre** (`CLAVES-ASESORES…`, el más reciente) en la carpeta principal
   con `clavesBuscarArchivoId()`, porque al resubirlo a Drive cambia de ID; el ID de
   `CONFIG_FILES` es solo respaldo. `clavesParsear()` tolera comas faltantes/sobrantes.

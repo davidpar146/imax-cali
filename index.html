@@ -2495,9 +2495,9 @@
         // CAMBIO #2: SELECTOR VISUAL DE PRESTADORES CON FRECUENCIA
         // ========================================================
 
-        // Lista inicial vacía: los prestadores de IMAX CALI se agregan con "+ OTRO"
-        // y quedan guardados en Drive (PRESTADORES-LISTA.json).
-        const PRESTADORES_INICIALES = [];
+        // Lista inicial de IMAX CALI (pedida por el usuario). Solo se usa si en Drive no existe
+        // PRESTADORES-LISTA.json o está vacía; los demás se agregan con "+ OTRO".
+        const PRESTADORES_INICIALES = ['JHONATAN', 'SIRLEY'];
 
         const PRESTADORES_ARCHIVO = 'PRESTADORES-LISTA.json';
         let prestadoresLista = [];          // [{nombre, frecuencia}]
@@ -2530,6 +2530,11 @@
                     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
                     const data = await resp.json();
                     prestadoresLista = Array.isArray(data.prestadores) ? data.prestadores : [];
+                    // Lista vacía en Drive: se siembra con los valores iniciales
+                    if (prestadoresLista.length === 0 && PRESTADORES_INICIALES.length > 0) {
+                        prestadoresLista = PRESTADORES_INICIALES.map(n => ({ nombre: n, frecuencia: 0 }));
+                        await prestadoresGuardarLista();
+                    }
                     console.log('✅ Prestadores cargados:', prestadoresLista.length);
                 } else {
                     // Primera vez: crear con valores iniciales
@@ -2892,31 +2897,18 @@
         // El código es el identificador oficial (evita nombres duplicados).
         const ACC_CATEGORIAS = ['Todos', 'Estuches', 'Audio', 'Cargadores y cables', 'Vidrios'];
         const ACCESORIOS_CATALOGO = [
-            { codigo: 'AC01', nombre: 'Estuche silicona', categoria: 'Estuches' },
-            { codigo: 'AC02', nombre: 'Estuche space', categoria: 'Estuches' },
-            { codigo: 'AC03', nombre: 'Estuche space magnético 17', categoria: 'Estuches' },
-            { codigo: 'AC04', nombre: 'Estuche silicon 17', categoria: 'Estuches' },
-            { codigo: 'AC06', nombre: 'Estuche MG silicon', categoria: 'Estuches' },
-            { codigo: 'AC07', nombre: 'Estuche nice y focus', categoria: 'Estuches' },
-            { codigo: 'AC08', nombre: 'Estuche magnético stand', categoria: 'Estuches' },
-            { codigo: 'AC09', nombre: 'Estuche escarchado iph 17PM', categoria: 'Estuches' },
-            { codigo: 'AC10', nombre: 'Estuche anillo iph 17PM', categoria: 'Estuches' },
-            { codigo: 'AC11', nombre: 'Estuche billetera', categoria: 'Estuches' },
-            { codigo: 'AC23', nombre: 'Estuche promoción', categoria: 'Estuches' },
-            { codigo: 'AC12', nombre: 'Auricular tipo lightning', categoria: 'Audio' },
-            { codigo: 'AC13', nombre: 'Auricular tipo C', categoria: 'Audio' },
-            { codigo: 'AC19', nombre: 'AirPods Pro 2 1.1', categoria: 'Audio' },
-            { codigo: 'AC20', nombre: 'AirPods 3 1.1', categoria: 'Audio' },
-            { codigo: 'AC21', nombre: 'AirPods Pro 3 1.1', categoria: 'Audio' },
-            { codigo: 'AC14', nombre: 'Cargador certificado lightning', categoria: 'Cargadores y cables' },
-            { codigo: 'AC15', nombre: 'Cargador certificado tipo C', categoria: 'Cargadores y cables' },
-            { codigo: 'AC16', nombre: 'Adaptador original', categoria: 'Cargadores y cables' },
-            { codigo: 'AC17', nombre: 'Cable original tipo C atomic', categoria: 'Cargadores y cables' },
-            { codigo: 'AC18', nombre: 'Cable original tipo lightning atomic', categoria: 'Cargadores y cables' },
-            { codigo: 'V-1', nombre: 'Vidrio', categoria: 'Vidrios' },
-            { codigo: 'V-2', nombre: 'Cerámico', categoria: 'Vidrios' },
-            { codigo: 'V-4', nombre: 'Vidrio línea 17', categoria: 'Vidrios' },
-            { codigo: 'V-5', nombre: 'Antiespía', categoria: 'Vidrios' }
+            { codigo: 'AC01', nombre: 'Estuche Silicona', categoria: 'Estuches' },
+            { codigo: 'AC02', nombre: 'Estuche Space', categoria: 'Estuches' },
+            { codigo: 'AC03', nombre: 'Cabeza Original', categoria: 'Cargadores y cables' },
+            { codigo: 'AC04', nombre: 'Cargador certificado lightning', categoria: 'Cargadores y cables' },
+            { codigo: 'AC05', nombre: 'Cargador certificado tipo C', categoria: 'Cargadores y cables' },
+            { codigo: 'AC06', nombre: 'Cable original tipo C atomic', categoria: 'Cargadores y cables' },
+            { codigo: 'AC07', nombre: 'AirPods Pro 2 1.1', categoria: 'Audio' },
+            { codigo: 'AC08', nombre: 'AirPods 3 1.1', categoria: 'Audio' },
+            { codigo: 'AC09', nombre: 'AirPods Pro 3 1.1', categoria: 'Audio' },
+            { codigo: 'AC10', nombre: 'Parlante', categoria: 'Audio' },
+            { codigo: 'V1', nombre: 'Vidrio', categoria: 'Vidrios' },
+            { codigo: 'V2', nombre: 'M-glass', categoria: 'Vidrios' }
         ];
         let accFiltroCategoria = null;   // null = contraído (solo populares); 'Todos'/categoría = ver todos
         let accSeleccionado = null;   // { codigo, nombre, categoria }
