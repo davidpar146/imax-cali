@@ -95,8 +95,12 @@ Respetar SIEMPRE el prefijo del módulo al añadir código:
   `mant-form-cuerpo` (oculto hasta elegir). El botón Guardar se bloquea mientras sube (`mantGuardando`).
 - **Mantenimientos — lista**: `mantAgruparLista()` separa En mantenimiento (abiertos sin novedades),
   Con novedad (abiertos con novedades), Finalizados de los últimos `MANT_DIAS_FINALIZADOS` (7) días
-  y Finalizados anteriores (plegados en `<details>`). La fecha de cierre la da `mantFechaCierre()`.
-  `mantQuitarDuplicados()` muestra una sola copia por número (no toca Drive).
+  y Finalizados anteriores. La fecha de cierre la da `mantFechaCierre()`.
+  `mantQuitarDuplicados()` muestra una sola copia por número (no toca Drive). Presentación estilo
+  Ingresos Pendientes: tarjetas resumen + un grupo por tarjeta que se contrae/expande
+  (`mantRenderGrupo`, `mantToggleGrupo`, estado en `mantGruposAbiertos`). Cada ítem tiene
+  "🔎 Detalle" (`mantVerDetalle` → modal `mant-detalle-modal` con Ingreso / Novedades / Salida y fotos
+  vía `mantDetalleCargarFotos`). La consulta solo trae JSON `Mantenimiento-NNNN.json`.
 - **Catálogo de accesorios**: `ACCESORIOS_CATALOGO` / `ACC_CATEGORIAS` (solo lo usa Remisiones).
   Los precios no van en el catálogo; se digitan en cada venta.
   El archivo se busca **por nombre** (`CLAVES-ASESORES…`, el más reciente) en la carpeta principal
