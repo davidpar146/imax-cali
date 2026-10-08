@@ -1177,7 +1177,18 @@
                 </div>
             </div>
 
+            <!-- Origen del equipo: IMAX (propio, sin datos ni firma de cliente) o Cliente -->
             <div class="card">
+                <div class="card-title">🏷️ ¿De quién es el equipo?</div>
+                <div class="toggle-group">
+                    <button type="button" class="toggle-btn" id="mant-origen-imax" onclick="mantSetOrigen('imax')">🏢 IMAX</button>
+                    <button type="button" class="toggle-btn" id="mant-origen-cliente" onclick="mantSetOrigen('cliente')">👤 Cliente</button>
+                </div>
+                <p id="mant-origen-ayuda" style="font-size:0.8rem; color:var(--gray-600); margin-top:0.5rem;">Elige una opción para continuar.</p>
+            </div>
+
+            <div id="mant-form-cuerpo" style="display:none;">
+            <div class="card" id="mant-card-cliente">
                 <div class="card-title">👤 Datos del Cliente</div>
                 <div class="form-group">
                     <label>Nombre *</label>
@@ -1209,8 +1220,8 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>Falla Reportada por el Cliente *</label>
-                    <textarea id="mant-falla" placeholder="Describa la falla que reporta el cliente..." rows="3"></textarea>
+                    <label>Falla Reportada *</label>
+                    <textarea id="mant-falla" placeholder="Describa la falla que presenta el equipo..." rows="3"></textarea>
                 </div>
             </div>
 
@@ -1323,7 +1334,7 @@
                 </div>
             </div>
 
-            <div class="card">
+            <div class="card" id="mant-card-firma">
                 <div class="card-title">✍️ Firma del Cliente</div>
                 <p style="font-size:0.8rem; color:var(--gray-600); margin-bottom:0.75rem;">
                     El cliente firma aceptando el ingreso del equipo
@@ -1337,6 +1348,7 @@
             <button class="btn btn-success" id="mant-btn-guardar" onclick="mantGuardar()">
                 ☁️ Guardar Mantenimiento en Drive
             </button>
+            </div><!-- /mant-form-cuerpo -->
         </div>
 
         <div id="mant-tab-content-lista" style="display:none;">
@@ -4488,6 +4500,41 @@
             if (mantFirmaCtx) mantFirmaCtx.clearRect(0, 0, canvas.width, canvas.height);
         }
 
+        // ===== Origen del equipo: 'imax' (equipo propio) o 'cliente' =====
+        // IMAX pasa directo a los datos del equipo (sin datos ni firma de cliente).
+        let mantOrigen = null;
+
+        function mantSetOrigen(origen) {
+            mantOrigen = origen;
+            const esCliente = origen === 'cliente';
+            document.getElementById('mant-origen-imax').classList.toggle('active', origen === 'imax');
+            document.getElementById('mant-origen-cliente').classList.toggle('active', esCliente);
+            document.getElementById('mant-origen-ayuda').style.display = origen ? 'none' : 'block';
+            document.getElementById('mant-form-cuerpo').style.display = origen ? 'block' : 'none';
+            document.getElementById('mant-card-cliente').style.display = esCliente ? 'block' : 'none';
+            document.getElementById('mant-card-firma').style.display = esCliente ? 'block' : 'none';
+            if (esCliente) mantFirmaAsegurarTamano();
+        }
+
+        // La firma se dimensiona al abrir el módulo; si estaba oculta (antes de elegir
+        // el origen) quedó en 0 px. Al mostrarla se le da su tamaño real.
+        function mantFirmaAsegurarTamano() {
+            const canvas = document.getElementById('mant-firma-canvas');
+            if (!canvas) return;
+            if (!mantFirmaCtx) { mantIniciarFirma(); return; }
+            const dpr = window.devicePixelRatio || 1;
+            const ancho = canvas.getBoundingClientRect().width;
+            if (ancho === 0 || canvas.width === Math.floor(ancho * dpr)) return;
+            canvas.width = ancho * dpr;
+            canvas.height = 160 * dpr;   // alto de diseño del lienzo (atributo height="160")
+            // Cambiar el tamaño reinicia el contexto: se vuelven a aplicar escala y trazo
+            mantFirmaCtx.scale(dpr, dpr);
+            mantFirmaCtx.strokeStyle = '#1f2937';
+            mantFirmaCtx.lineWidth = 2.5;
+            mantFirmaCtx.lineCap = 'round';
+            mantFirmaCtx.lineJoin = 'round';
+        }
+
         // CAMBIO #1: ahora abre selector de modo
         function mantEscanearIMEI() {
             abrirSelectorEscaneo('mant-equipo-imei');
@@ -4553,7 +4600,9 @@
             const imei = document.getElementById('mant-equipo-imei').value.trim();
             const falla = document.getElementById('mant-falla').value.trim();
             const asesor = mantAsesorActual || '';
-            if (!nombre || !telefono || !descripcion || !imei || !falla || !asesor) {
+            if (!mantOrigen) { mostrarToast('⚠️ Elige si el equipo es de IMAX o de un Cliente'); return; }
+            const esCliente = mantOrigen === 'cliente';
+            if ((esCliente && (!nombre || !telefono)) || !descripcion || !imei || !falla || !asesor) {
                 mostrarToast('⚠️ Complete los campos obligatorios (*)'); return;
             }
             mostrarToast('☁️ Guardando mantenimiento...');
@@ -4565,11 +4614,14 @@
                 const numeroFormateado = String(mantConsecutivo).padStart(4, '0');
                 const docName = `Mantenimiento-${numeroFormateado}`;
                 const canvas = document.getElementById('mant-firma-canvas');
-                const firmaBase64 = canvas.toDataURL('image/png');
+                const firmaBase64 = esCliente ? canvas.toDataURL('image/png') : null;
                 const doc = {
                     tipo: 'mantenimiento', numero: mantConsecutivo,
                     fecha_ingreso: new Date().toISOString(),
-                    cliente: { nombre, telefono, identificacion: document.getElementById('mant-cliente-id').value.trim() },
+                    origen: mantOrigen,   // 'imax' (equipo propio) | 'cliente'
+                    cliente: esCliente
+                        ? { nombre, telefono, identificacion: document.getElementById('mant-cliente-id').value.trim() }
+                        : { nombre: 'IMAX CALI', telefono: '', identificacion: '' },
                     equipo: { descripcion, imei },
                     falla_reportada: falla,
                     inspeccion_visual: mantDanos,
@@ -4624,6 +4676,7 @@
             if (btnF) { btnF.classList.remove('captured'); btnF.innerHTML = '📸 Foto de la Falla Específica'; }
             document.getElementById('mant-numero-display').textContent =
                 `Mant-${String(mantConsecutivo).padStart(4, '0')}`;
+            mantSetOrigen(null);   // el siguiente registro vuelve a preguntar IMAX / Cliente
             window.scrollTo(0, 0);
         }
 

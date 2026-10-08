@@ -89,6 +89,10 @@ Respetar SIEMPRE el prefijo del módulo al añadir código:
 - **Prestadores**: viven en `PRESTADORES-LISTA.json` (carpeta `prestamosPagos`); se agregan con
   "+ OTRO". `PRESTADORES_INICIALES` (hoy `JHONATAN`, `SIRLEY`, pedido por el usuario) solo
   siembra la lista si ese archivo no existe o está vacío.
+- **Mantenimientos — origen del equipo**: al iniciar se elige `mantSetOrigen('imax' | 'cliente')`.
+  IMAX oculta los datos y la firma del cliente (`mant-card-cliente`, `mant-card-firma`) y guarda
+  `origen: 'imax'`, `cliente.nombre: 'IMAX CALI'`, `firma_cliente: null`. Todo el formulario está en
+  `mant-form-cuerpo` (oculto hasta elegir). El botón Guardar se bloquea mientras sube (`mantGuardando`).
 - **Catálogo de accesorios**: `ACCESORIOS_CATALOGO` / `ACC_CATEGORIAS` (solo lo usa Remisiones).
   Los precios no van en el catálogo; se digitan en cada venta.
   El archivo se busca **por nombre** (`CLAVES-ASESORES…`, el más reciente) en la carpeta principal
