@@ -1334,7 +1334,7 @@
                 </button>
             </div>
 
-            <button class="btn btn-success" onclick="mantGuardar()">
+            <button class="btn btn-success" id="mant-btn-guardar" onclick="mantGuardar()">
                 ☁️ Guardar Mantenimiento en Drive
             </button>
         </div>
@@ -4532,7 +4532,21 @@
             mantRenderizarChipsAsesor();
         }
 
+        // Evita guardar dos veces el mismo mantenimiento (varios clics mientras sube):
+        // antes quedaban copias repetidas del mismo número y el consecutivo saltaba.
+        let mantGuardando = false;
+
+        // Mensaje de error con la causa real (antes decía "Revisa consola").
+        function mantMensajeError(error) {
+            const det = String((error && error.message) || '');
+            const cod = (det.match(/failed: (\d{3})/) || [])[1];
+            if (cod === '401') return '❌ Sesión de Google vencida: toca "Renovar sesión" y vuelve a guardar';
+            if (cod) return `❌ Error al guardar (Drive respondió ${cod}). Intenta de nuevo.`;
+            return `❌ Error al guardar: ${det.slice(0, 80) || 'sin detalle'}. Revisa la conexión e intenta de nuevo.`;
+        }
+
         async function mantGuardar() {
+            if (mantGuardando) return;
             const nombre = document.getElementById('mant-cliente-nombre').value.trim();
             const telefono = document.getElementById('mant-cliente-telefono').value.trim();
             const descripcion = document.getElementById('mant-equipo-descripcion').value.trim();
@@ -4543,6 +4557,10 @@
                 mostrarToast('⚠️ Complete los campos obligatorios (*)'); return;
             }
             mostrarToast('☁️ Guardando mantenimiento...');
+            mantGuardando = true;
+            const btnGuardar = document.getElementById('mant-btn-guardar');
+            const textoBtn = btnGuardar ? btnGuardar.innerHTML : '';
+            if (btnGuardar) { btnGuardar.disabled = true; btnGuardar.innerHTML = '⏳ Guardando...'; }
             try {
                 const numeroFormateado = String(mantConsecutivo).padStart(4, '0');
                 const docName = `Mantenimiento-${numeroFormateado}`;
@@ -4576,7 +4594,10 @@
                 mostrarToast(`✅ ${docName} guardado en Drive`);
             } catch (error) {
                 console.error('Error guardando mantenimiento:', error);
-                mostrarToast('❌ Error al guardar. Revisa consola.');
+                mostrarToast(mantMensajeError(error), 6000);
+            } finally {
+                mantGuardando = false;
+                if (btnGuardar) { btnGuardar.disabled = false; btnGuardar.innerHTML = textoBtn; }
             }
         }
 
