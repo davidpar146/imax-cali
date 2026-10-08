@@ -894,7 +894,8 @@
                     <option value="otro">Otro</option>
                 </select>
             </div>
-            <div class="form-group">
+            <!-- En Retoma se oculta: el monto sale del valor del equipo recibido (retoma-valor × cantidad) -->
+            <div class="form-group" id="payment-amount-group">
                 <label>Monto *</label>
                 <input type="text" id="payment-amount" placeholder="0" oninput="formatearInput(this); recActualizarMonto()">
             </div>
@@ -944,9 +945,12 @@
                         <input type="number" id="retoma-cantidad" value="1" min="1">
                     </div>
                     <div class="form-group">
-                        <label>Valor</label>
+                        <label>Valor del equipo *</label>
                         <input type="text" id="retoma-valor" placeholder="0" oninput="formatearInput(this)">
                     </div>
+                </div>
+                <div style="font-size:0.78rem; color:var(--gray-600); margin:-0.5rem 0 1rem;">
+                    💡 Este valor (× cantidad) es el monto que se abona a la venta. No se pide en otro campo.
                 </div>
                 <div class="form-group">
                     <label>IMEI *</label>
@@ -3367,6 +3371,8 @@
                     creditSection.style.display = 'none';
                     document.getElementById('ecredit-photos-section').style.display = 'none';
                     retomaSection.style.display = 'none';
+                    // Retoma: el monto es el valor del equipo recibido; no se pide dos veces.
+                    document.getElementById('payment-amount-group').style.display = this.value === 'retoma' ? 'none' : 'block';
                     if (this.value === 'credito') {
                         creditSection.style.display = 'block';
                         refGroup.style.display = 'block';
@@ -3471,8 +3477,14 @@
 
         function agregarPago() {
             const method = document.getElementById('payment-method').value;
-            const amount = parsearValor(document.getElementById('payment-amount').value);
+            let amount = parsearValor(document.getElementById('payment-amount').value);
             const reference = document.getElementById('payment-reference').value.trim();
+            // Retoma: el monto es cantidad × valor del equipo recibido (único dato de valor).
+            if (method === 'retoma') {
+                const retomaCant = parseInt(document.getElementById('retoma-cantidad').value) || 1;
+                amount = retomaCant * parsearValor(document.getElementById('retoma-valor').value);
+                if (amount <= 0) { mostrarToast('⚠️ Ingrese el valor del equipo en retoma'); return; }
+            }
             if (!method || amount <= 0) { mostrarToast('⚠️ Complete los datos del pago'); return; }
             if ((method === 'transferencia' || method === 'coordinadora') && !reference) {
                 mostrarToast('⚠️ Debe ingresar el banco'); return;
@@ -3610,6 +3622,7 @@
             document.getElementById('credit-photos-section').style.display = 'none';
             document.getElementById('ecredit-photos-section').style.display = 'none';
             document.getElementById('retoma-section').style.display = 'none';
+            document.getElementById('payment-amount-group').style.display = 'block';
             recReset();
             document.getElementById('retoma-descripcion').value = '';
             document.getElementById('retoma-cantidad').value = '1';
