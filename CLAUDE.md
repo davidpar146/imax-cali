@@ -89,6 +89,9 @@ Respetar SIEMPRE el prefijo del módulo al añadir código:
 - **Prestadores**: viven en `PRESTADORES-LISTA.json` (carpeta `prestamosPagos`); se agregan con
   "+ OTRO". `PRESTADORES_INICIALES` (hoy `JHONATAN`, `SIRLEY`, pedido por el usuario) solo
   siembra la lista si ese archivo no existe o está vacío.
+- **Guardar remisión**: `guardarDocumento()` se bloquea mientras sube (`remisionGuardando` +
+  botón `btn-guardar-remision` con "⏳ Guardando…", restaurado en `finally`) para evitar remisiones
+  duplicadas por doble clic. Cualquier botón nuevo que guarde en Drive debe hacer lo mismo.
 - **Medios de pago en ventas**: Efectivo, Bancolombia, Datáfono, Banco de Bogotá, ADDI, Retoma, Otro.
   Bancolombia / Datáfono / Banco de Bogotá / ADDI (`PAGOS_SOLO_FOTO`) piden solo la foto del
   comprobante (sin referencia). Recargos: ADDI 17% fijo; Datáfono 5% o 6% que elige el asesor
