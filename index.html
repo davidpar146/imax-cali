@@ -883,12 +883,12 @@
                 <select id="payment-method">
                     <option value="">Seleccione...</option>
                     <option value="efectivo">Efectivo</option>
-                    <option value="transferencia">Transferencia</option>
-                    <option value="tarjeta">Tarjeta</option>
-                    <option value="credito">Crédito Banco de Bogotá</option>
+                    <option value="bancolombia">Bancolombia</option>
+                    <option value="datafono">Datáfono</option>
+                    <option value="bancobogota">Banco de Bogotá</option>
                     <option value="addi">ADDI</option>
-                    <option value="coordinadora">Coordinadora</option>
-                    <!-- Gora y E-Credit no se usan en IMAX CALI (se quitaron del menú; su lógica queda para leer pagos antiguos) -->
+                    <!-- Ya no se ofrecen: Transferencia, Tarjeta, Crédito Banco de Bogotá, Coordinadora, Gora y E-Credit
+                         (su lógica queda para leer pagos antiguos) -->
                     <option value="retoma">Retoma (Parte de Pago)</option>
                     <option value="otro">Otro</option>
                 </select>
@@ -2458,6 +2458,7 @@
             const pagos = documento.payments.map(p => {
                 const methodNames = {
                     efectivo: 'Efectivo', transferencia: 'Transferencia',
+                    bancolombia: 'Bancolombia', datafono: 'Datáfono', bancobogota: 'Banco de Bogotá',
                     tarjeta: 'Tarjeta', credito: 'Crédito Banco de Bogotá', addi: 'ADDI', gora: 'Gora',
                     coordinadora: 'Coordinadora', ecredit: 'E-Credit',
                     retoma: 'Retoma', otro: 'Otro'
@@ -3453,7 +3454,10 @@
                     retomaSection.style.display = 'none';
                     // Retoma: el monto es el valor del equipo recibido; no se pide dos veces.
                     document.getElementById('payment-amount-group').style.display = this.value === 'retoma' ? 'none' : 'block';
-                    if (this.value === 'credito') {
+                    if (PAGOS_SOLO_FOTO.includes(this.value)) {
+                        // Bancolombia, Datáfono, Banco de Bogotá y ADDI: solo la foto del comprobante
+                        photoSection.style.display = 'block';
+                    } else if (this.value === 'credito') {
                         creditSection.style.display = 'block';
                         refGroup.style.display = 'block';
                         refLabel.textContent = 'Referencia/Comprobante';
@@ -3489,18 +3493,22 @@
         // ===== Recargo por medio de pago (para contabilidad) =====
         // El % se calcula sobre el MONTO de ese medio (base). El recargo NO afecta el
         // cuadre de la venta: se guarda aparte en cada pago (recargoPct/Monto/Forma).
-        // Gora y E-Credit ya no se ofrecen en el menú de pagos (IMAX CALI no los usa).
+        // Menú de ventas IMAX CALI: Efectivo, Bancolombia, Datáfono, Banco de Bogotá, ADDI, Retoma, Otro.
+        // Medios que solo piden la foto del comprobante (sin referencia ni número de aprobación):
+        const PAGOS_SOLO_FOTO = ['bancolombia', 'datafono', 'bancobogota', 'addi'];
+        // Recargo fijo: ADDI 17%. (tarjeta/gora/ecredit quedan solo para pagos antiguos.)
         const RECARGOS_FIJOS = { tarjeta: 5, gora: 12, addi: 17, ecredit: 10 };
-        // 'credito' (Banco de Bogotá) es 5% o 6% y lo elige el asesor.
-        // Sin recargo: efectivo, transferencia, coordinadora, retoma, otro.
-        let recCreditoPct = null;   // 5 o 6 cuando el medio es 'credito'
+        // Recargo de 5% o 6% que elige el asesor: Datáfono (y 'credito' para pagos antiguos).
+        const RECARGOS_ELEGIBLES = ['datafono', 'credito'];
+        // Sin recargo: efectivo, bancolombia, bancobogota, retoma, otro.
+        let recCreditoPct = null;   // 5 o 6 cuando el medio tiene recargo elegible
         let recFormaActual = null;  // 'sumado' | 'efectivo' | 'transferencia'
 
         function recTieneRecargo(method) {
-            return method === 'credito' || (RECARGOS_FIJOS[method] || 0) > 0;
+            return RECARGOS_ELEGIBLES.includes(method) || (RECARGOS_FIJOS[method] || 0) > 0;
         }
         function recPctDe(method) {
-            if (method === 'credito') return recCreditoPct;   // null hasta que elija
+            if (RECARGOS_ELEGIBLES.includes(method)) return recCreditoPct;   // null hasta que elija
             return RECARGOS_FIJOS[method] || 0;
         }
         function recFormaLabel(forma) {
@@ -3531,8 +3539,8 @@
             const base = parsearValor(document.getElementById('payment-amount').value);
             const pct = recPctDe(method);
             let html = '<div class="rec-title">💠 Recargo del medio de pago</div>';
-            if (method === 'credito') {
-                html += `<div class="rec-sub">Elige el porcentaje del crédito:</div>
+            if (RECARGOS_ELEGIBLES.includes(method)) {
+                html += `<div class="rec-sub">Elige el porcentaje del recargo:</div>
                     <div class="rec-btns">
                         <div class="rec-btn ${recCreditoPct === 5 ? 'on' : ''}" onclick="recSetCreditoPct(5)">5%</div>
                         <div class="rec-btn ${recCreditoPct === 6 ? 'on' : ''}" onclick="recSetCreditoPct(6)">6%</div>
@@ -3550,7 +3558,7 @@
                         <div class="rec-btn ${recFormaActual === 'efectivo' ? 'on' : ''}" onclick="recSetForma('efectivo')">💵 Efectivo</div>
                         <div class="rec-btn ${recFormaActual === 'transferencia' ? 'on' : ''}" onclick="recSetForma('transferencia')">🏦 Transferencia</div>
                     </div>`;
-            } else if (method === 'credito') {
+            } else if (RECARGOS_ELEGIBLES.includes(method)) {
                 html += `<div class="rec-sub" style="color:var(--gray-500); font-weight:400;">Selecciona 5% o 6% para calcular el recargo.</div>`;
             }
             box.innerHTML = html;
@@ -3559,7 +3567,8 @@
         function agregarPago() {
             const method = document.getElementById('payment-method').value;
             let amount = parsearValor(document.getElementById('payment-amount').value);
-            const reference = document.getElementById('payment-reference').value.trim();
+            // Los medios "solo foto" no llevan referencia (evita guardar una escrita para otro medio)
+            const reference = PAGOS_SOLO_FOTO.includes(method) ? '' : document.getElementById('payment-reference').value.trim();
             // Retoma: el monto es cantidad × valor del equipo recibido (único dato de valor).
             if (method === 'retoma') {
                 const retomaCant = parseInt(document.getElementById('retoma-cantidad').value) || 1;
@@ -3570,7 +3579,7 @@
             if ((method === 'transferencia' || method === 'coordinadora') && !reference) {
                 mostrarToast('⚠️ Debe ingresar el banco'); return;
             }
-            if ((method === 'transferencia' || method === 'tarjeta' || method === 'addi' || method === 'gora' || method === 'coordinadora') && !capturedPhotos.soporte) {
+            if ((PAGOS_SOLO_FOTO.includes(method) || method === 'transferencia' || method === 'tarjeta' || method === 'gora' || method === 'coordinadora') && !capturedPhotos.soporte) {
                 mostrarToast('⚠️ Debe capturar foto del comprobante'); return;
             }
             if (method === 'credito') {
@@ -3608,7 +3617,7 @@
             // amount sigue siendo la base; el recargo se guarda aparte para contabilidad.
             if (recTieneRecargo(method)) {
                 const pctR = recPctDe(method);
-                if (!pctR) { mostrarToast('⚠️ Elige el porcentaje del crédito (5% o 6%)'); return; }
+                if (!pctR) { mostrarToast('⚠️ Elige el porcentaje del recargo (5% o 6%)'); return; }
                 if (!recFormaActual) { mostrarToast('⚠️ Indica cómo se paga el recargo'); return; }
                 payment.recargoPct = pctR;
                 payment.recargoMonto = Math.round(amount * pctR / 100);
@@ -3630,6 +3639,7 @@
             if (currentPayments.length === 0) { lista.innerHTML = ''; summary.style.display = 'none'; return; }
             const methodNames = {
                 efectivo: '💵 Efectivo', transferencia: '🏦 Transferencia',
+                bancolombia: '🟡 Bancolombia', datafono: '💳 Datáfono', bancobogota: '🏦 Banco de Bogotá',
                 tarjeta: '💳 Tarjeta', credito: '📋 Crédito Banco de Bogotá', addi: '🔵 ADDI',
                 gora: '🟣 Gora', coordinadora: '📦 Coordinadora',
                 ecredit: '🟪 E-Credit', retoma: '🔄 Retoma', otro: '💰 Otro'
@@ -6356,7 +6366,13 @@
 
         let ingEmpresaActiva = null;
         let ingRemisionesPendientes = [];
-        const ING_DIAS_PLAZO = { addi: 30, gora: 30, coordinadora: 15, ecredit: 30 };
+        // Plazo de cobro: 7 días para todos los medios que generan cobro pendiente (pedido del usuario).
+        const ING_DIAS_PLAZO = { bancolombia: 7, datafono: 7, bancobogota: 7, addi: 7, gora: 30, coordinadora: 15, ecredit: 30 };
+
+        // Clave de agrupación del cobro: el medio de pago guardado (cobros nuevos) o la empresa (antiguos).
+        function ingClaveEmpresa(doc) {
+            return doc.metodo || (doc.empresa || 'Otro').toLowerCase();
+        }
 
         function ingInicializar() { ingCargarResumen(); }
 
@@ -6370,7 +6386,7 @@
                 });
                 const archivos = r.result.files || [];
                 if (!archivos.length) {
-                    cont.innerHTML = '<p style="text-align:center; color:var(--gray-500); padding:1.5rem;">No hay cobros registrados aún.<br><small>Se crean automáticamente al guardar remisiones con ADDI, Gora, Coordinadora o E-Credit.</small></p>';
+                    cont.innerHTML = '<p style="text-align:center; color:var(--gray-500); padding:1.5rem;">No hay cobros registrados aún.<br><small>Se crean automáticamente al guardar remisiones con Bancolombia, Datáfono, Banco de Bogotá o ADDI.</small></p>';
                     return;
                 }
                 const docs = await Promise.all(archivos.map(async f => {
@@ -6386,7 +6402,7 @@
                 const recibidos  = docs.filter(d => d && d.doc?.estado === 'recibido');
                 const porEmpresa = {};
                 pendientes.forEach(({ fileId, fileName, doc }) => {
-                    const emp = (doc.empresa || 'Otro').toLowerCase();
+                    const emp = ingClaveEmpresa(doc);
                     if (!porEmpresa[emp]) porEmpresa[emp] = { nombre: doc.empresa, total: 0, remisiones: [] };
                     porEmpresa[emp].total += doc.monto_esperado || 0;
                     porEmpresa[emp].remisiones.push({ fileId, fileName, doc });
@@ -6406,8 +6422,8 @@
                             <div style="font-size:0.72rem; opacity:0.8;">${recibidos.length} cobro(s)</div>
                         </div>
                     </div>`;
-                const empIconos = { addi: '🔵', gora: '🟣', coordinadora: '📦', ecredit: '🟪' };
-                const empColores = { addi: '#3b82f6', gora: '#8b5cf6', coordinadora: '#f59e0b', ecredit: '#7c3aed' };
+                const empIconos = { bancolombia: '🟡', datafono: '💳', bancobogota: '🏦', addi: '🔵', gora: '🟣', coordinadora: '📦', ecredit: '🟪' };
+                const empColores = { bancolombia: '#ca8a04', datafono: '#0891b2', bancobogota: '#1e40af', addi: '#3b82f6', gora: '#8b5cf6', coordinadora: '#f59e0b', ecredit: '#7c3aed' };
                 Object.entries(porEmpresa).forEach(([empKey, data]) => {
                     data.remisiones.sort((a, b) => new Date(a.doc.fecha_remision) - new Date(b.doc.fecha_remision));
                     const icono = empIconos[empKey] || '💼';
@@ -6464,7 +6480,7 @@
                 } catch { return null; }
             }));
             ingRemisionesPendientes = todos
-                .filter(d => d && d.doc?.estado === 'pendiente' && (d.doc.empresa || '').toLowerCase() === empKey)
+                .filter(d => d && d.doc?.estado === 'pendiente' && ingClaveEmpresa(d.doc) === empKey)
                 .sort((a, b) => new Date(a.doc.fecha_remision) - new Date(b.doc.fecha_remision));
             const totalPend = ingRemisionesPendientes.reduce((s, r) => s + (r.doc.monto_esperado || 0), 0);
             document.getElementById('ing-detalle-resumen').innerHTML = `
@@ -7164,18 +7180,21 @@
 
         // ============= LÓGICA COBROS PENDIENTES Y PRESTADOS =============
 
-        const EMPRESAS_FINANCIERAS = ['addi', 'gora', 'coordinadora', 'ecredit'];
+        // Medios que generan cobro pendiente en Ingresos (por el valor base, sin recargo).
+        // gora/coordinadora/ecredit quedan por compatibilidad; ya no están en el menú.
+        const EMPRESAS_FINANCIERAS = ['bancolombia', 'datafono', 'bancobogota', 'addi', 'gora', 'coordinadora', 'ecredit'];
+        const EMPRESAS_NOMBRES = { bancolombia: 'Bancolombia', datafono: 'Datáfono', bancobogota: 'Banco de Bogotá' };
 
         async function registrarCobrosPendientes(documento, docName) {
             const pagosFinancieros = (documento.payments || [])
                 .filter(p => EMPRESAS_FINANCIERAS.includes(p.method));
             if (pagosFinancieros.length === 0) return;
             for (const pago of pagosFinancieros) {
-                const empresa = pago.method.charAt(0).toUpperCase() + pago.method.slice(1);
+                const empresa = EMPRESAS_NOMBRES[pago.method] || (pago.method.charAt(0).toUpperCase() + pago.method.slice(1));
                 const nombreArch = `Cobro-${docName}-${empresa}.json`;
                 const registro = {
                     tipo: 'cobro_pendiente', estado: 'pendiente',
-                    empresa, remision: docName,
+                    empresa, metodo: pago.method, remision: docName,
                     fecha_remision: documento.fecha,
                     cliente: documento.cliente, asesor: documento.asesor,
                     monto_esperado: pago.amount,
