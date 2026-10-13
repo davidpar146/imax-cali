@@ -998,7 +998,7 @@
             </div>
         </div>
 
-        <button class="btn btn-success" onclick="guardarDocumento()">
+        <button class="btn btn-success" id="btn-guardar-remision" onclick="guardarDocumento()">
             ☁️ Guardar y Subir a Drive + Sheets
         </button>
     </div>
@@ -3903,7 +3903,13 @@
 
         // ============= GUARDAR DOCUMENTO (CAMBIO #3: fecha en modal éxito) =============
 
+        // Evita guardar dos veces la misma remisión (doble clic mientras sube): antes se
+        // creaban dos remisiones iguales con consecutivos distintos (y doble fila en Excel,
+        // cobros pendientes y prestados).
+        let remisionGuardando = false;
+
         async function guardarDocumento() {
+            if (remisionGuardando) return;
             const asesor = document.getElementById('asesor-principal').value.trim();
             const cliente = document.getElementById('cliente').value.trim();
             const nit = document.getElementById('nit').value.trim();
@@ -3922,6 +3928,10 @@
 
             mostrarToast('☁️ Verificando consecutivo...');
             let lockFileId = null;
+            remisionGuardando = true;
+            const btnGuardar = document.getElementById('btn-guardar-remision');
+            const textoBtn = btnGuardar ? btnGuardar.innerHTML : '';
+            if (btnGuardar) { btnGuardar.disabled = true; btnGuardar.innerHTML = '⏳ Guardando remisión... no cierres ni recargues'; }
 
             try {
                 let numero = consecutivo;
@@ -4087,6 +4097,9 @@
                     catch (cleanupError) { console.error('Error limpiando lock:', cleanupError); }
                 }
                 mostrarToast('❌ Error al subir. Intente de nuevo.');
+            } finally {
+                remisionGuardando = false;
+                if (btnGuardar) { btnGuardar.disabled = false; btnGuardar.innerHTML = textoBtn; }
             }
         }
 
