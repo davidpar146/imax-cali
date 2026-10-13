@@ -89,6 +89,13 @@ Respetar SIEMPRE el prefijo del módulo al añadir código:
 - **Prestadores**: viven en `PRESTADORES-LISTA.json` (carpeta `prestamosPagos`); se agregan con
   "+ OTRO". `PRESTADORES_INICIALES` (hoy `JHONATAN`, `SIRLEY`, pedido por el usuario) solo
   siembra la lista si ese archivo no existe o está vacío.
+- **Medios de pago en ventas**: Efectivo, Bancolombia, Datáfono, Banco de Bogotá, ADDI, Retoma, Otro.
+  Bancolombia / Datáfono / Banco de Bogotá / ADDI (`PAGOS_SOLO_FOTO`) piden solo la foto del
+  comprobante (sin referencia). Recargos: ADDI 17% fijo; Datáfono 5% o 6% que elige el asesor
+  (`RECARGOS_ELEGIBLES`). Esos 4 crean cobro pendiente en Ingresos (`EMPRESAS_FINANCIERAS`) por el
+  valor base sin recargo, con plazo de 7 días (`ING_DIAS_PLAZO`); el cobro guarda `metodo` y se
+  agrupa con `ingClaveEmpresa()`. Transferencia, Tarjeta, Crédito BdB, Coordinadora, Gora y E-Credit
+  salieron del menú pero su lógica queda para leer pagos antiguos.
 - **Mantenimientos — origen del equipo**: al iniciar se elige `mantSetOrigen('imax' | 'cliente')`.
   IMAX oculta los datos y la firma del cliente (`mant-card-cliente`, `mant-card-firma`) y guarda
   `origen: 'imax'`, `cliente.nombre: 'IMAX CALI'`, `firma_cliente: null`. Todo el formulario está en
