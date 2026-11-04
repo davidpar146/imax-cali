@@ -464,15 +464,66 @@
     <script>
         let allDocuments = [];
         let filteredDocuments = [];
-        const ADMIN_USER = 'admin';  // 
-        const ADMIN_PASS = 'Skad11';  // 
+        const ADMIN_USER = 'admin';
+        // La contraseña ya NO vive en el código (el repositorio es público).
+        // Se crea en el primer ingreso de cada equipo y se guarda solo su
+        // hash PBKDF2 (con sal) en este navegador, igual que los datos del panel.
+        const ADMIN_HASH_KEY = 'imax_admin-pass-hash';
+        const ADMIN_PBKDF2_ITER = 310000;
+
+        function adminBytesAHex(buf) {
+            return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        function adminHexABytes(hex) {
+            return new Uint8Array(hex.match(/.{2}/g).map(h => parseInt(h, 16)));
+        }
+
+        async function adminDerivarHash(pass, salHex, iter) {
+            const base = await crypto.subtle.importKey(
+                'raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveBits']);
+            const bits = await crypto.subtle.deriveBits(
+                { name: 'PBKDF2', hash: 'SHA-256', salt: adminHexABytes(salHex), iterations: iter },
+                base, 256);
+            return adminBytesAHex(bits);
+        }
+
+        // Devuelve true si la contraseña es correcta. Si el equipo aún no tiene
+        // contraseña, la crea con la que se acaba de escribir (previa confirmación).
+        async function adminVerificarPass(pass) {
+            if (!window.crypto || !crypto.subtle) {
+                mostrarToast('❌ Este navegador no permite verificar la contraseña de forma segura');
+                return false;
+            }
+            const guardado = localStorage.getItem(ADMIN_HASH_KEY);
+            if (!guardado) {
+                if (pass.length < 10) {
+                    mostrarToast('⚠️ Primer ingreso: cree una contraseña de al menos 10 caracteres');
+                    return false;
+                }
+                if (prompt('Primer ingreso en este equipo. Confirme la nueva contraseña:') !== pass) {
+                    mostrarToast('❌ Las contraseñas no coinciden');
+                    return false;
+                }
+                const sal = adminBytesAHex(crypto.getRandomValues(new Uint8Array(16)));
+                const hash = await adminDerivarHash(pass, sal, ADMIN_PBKDF2_ITER);
+                localStorage.setItem(ADMIN_HASH_KEY, JSON.stringify({ sal, iter: ADMIN_PBKDF2_ITER, hash }));
+                return true;
+            }
+            try {
+                const { sal, iter, hash } = JSON.parse(guardado);
+                return (await adminDerivarHash(pass, sal, iter)) === hash;
+            } catch (e) {
+                return false;
+            }
+        }
 
         // Login
-        function login() {
+        async function login() {
             const user = document.getElementById('admin-user').value;
             const pass = document.getElementById('admin-pass').value;
 
-            if (user === ADMIN_USER && pass === ADMIN_PASS) {
+            if (user === ADMIN_USER && await adminVerificarPass(pass)) {
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('admin-panel').style.display = 'block';
                 cargarDatos();
@@ -748,7 +799,7 @@
                     const payment = doc.payments && doc.payments[idx] ? doc.payments[idx] : {};
                     const retoma = payment.retomaItem || {};
                     
-                    csv += `"${doc.tipo}",${doc.numero},"${formatDateFull(doc.fecha)}","${doc.cliente}","${doc.nit}","${doc.telefono || ''}","${doc.direccion || ''}","${doc.email || ''}","${doc.asesor || ''}","${doc.empresa || ''}","${item.descripcion}",${item.cantidad},${item.valor},"${item.imei || ''}","${item.estado}","${item.notas || ''}",${item.total},"${payment.method || ''}",${payment.amount || 0},"${payment.reference || ''}","${retoma.descripcion || ''}","${retoma.imei || ''}","${retoma.estado || ''}",${doc.totalItems || 0},${doc.totalPaid || 0},${doc.balance || 0},"${doc.observaciones || '"}"\n`;
+                    csv += `"${doc.tipo}",${doc.numero},"${formatDateFull(doc.fecha)}","${doc.cliente}","${doc.nit}","${doc.telefono || ''}","${doc.direccion || ''}","${doc.email || ''}","${doc.asesor || ''}","${doc.empresa || ''}","${item.descripcion}",${item.cantidad},${item.valor},"${item.imei || ''}","${item.estado}","${item.notas || ''}",${item.total},"${payment.method || ''}",${payment.amount || 0},"${payment.reference || ''}","${retoma.descripcion || ''}","${retoma.imei || ''}","${retoma.estado || ''}",${doc.totalItems || 0},${doc.totalPaid || 0},${doc.balance || 0},"${doc.observaciones || ''}"\n`;
                 });
             });
 
